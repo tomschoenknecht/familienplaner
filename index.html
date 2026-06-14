@@ -233,9 +233,13 @@ async function pushOne(key, value) {
 }
 
 // save() schreibt immer lokal und – falls verbunden – in die Cloud
+const _zuletztGesendet = {}; // key -> timestamp, um eigene Echo-Updates kurz zu ignorieren
 const save = (key, val) => {
   try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
-  if (DATEN_KEYS.includes(key)) pushOne(key, val).catch(() => {});
+  if (DATEN_KEYS.includes(key)) {
+    _zuletztGesendet[key] = Date.now();
+    pushOne(key, val).catch(() => {});
+  }
 };
 
 // ─── Hilfsfunktionen ──────────────────────────────────────────────────────────
@@ -364,6 +368,7 @@ function WochenplanView({ wochenplan, setWochenplan, rezepte, vorlieben, kalende
           return;
         }
         if (m === "Brotbox") {
+          if ([5, 6].includes(ti)) { neuerPlan[tag][m] = null; return; } // Keine Brotbox am Wochenende
           const brotboxOptionen = [
             "Käsebrot & Apfel", "Laugenbrezel & Joghurt", "Sandwich mit Schinken", "Wraps mit Gemüse & Frischkäse",
             "Brot mit Frischkäse & Gurke", "Mini-Croissant & Trauben", "Brot mit Hüttenkäse & Paprika",
@@ -887,7 +892,7 @@ function VorliebenView({ vorlieben, setVorlieben }) {
 
 function KalenderView({ kalender, setKalender }) {
   const [aktPerson, setAktPerson] = useState("Jette");
-  const [weekOffset, setWeekOffset] = useState(0);
+  const [weekOffset, setWeekOffset] = useState(1);
   const weekDates = getWeekDates(weekOffset);
   const abwesenheiten = kalender[aktPerson] || [];
 
@@ -941,7 +946,10 @@ function KalenderView({ kalender, setKalender }) {
 
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
         <button onClick={() => setWeekOffset(w => w - 1)} style={btnStyle("#334155")}>← Vorherige Woche</button>
-        <span style={{ fontWeight: 600, color: "#1e293b" }}>{weekDates[0]} – {weekDates[6]}</span>
+        <span style={{ fontWeight: 600, color: "#1e293b" }}>
+          KW ab {weekDates[0]} – {weekDates[6]}
+          {weekOffset === 1 ? " 📌 Aktuelle Planwoche" : ""}
+        </span>
         <button onClick={() => setWeekOffset(w => w + 1)} style={btnStyle("#334155")}>Nächste Woche →</button>
       </div>
       <p style={{ fontSize: 13, color: "#94a3b8", margin: "0 0 16px" }}>
@@ -1278,6 +1286,9 @@ function App() {
 
   // Eingehende Remote-Änderungen auf den State anwenden (ohne erneutes Pushen)
   const applyRemote = useCallback((key, value) => {
+    // Eigene Echo-Updates kurz nach dem Senden ignorieren (verhindert "Zurückspringen" beim Tippen, v.a. auf Mobilgeräten)
+    const seit = Date.now() - (_zuletztGesendet[key] || 0);
+    if (seit < 2500) return;
     const setterMap = { rezepte: setRezepte, vorlieben: setVorlieben, kalender: setKalender, wochenplan: setWochenplan, verlauf: setVerlauf };
     const setter = setterMap[key];
     if (setter) {
