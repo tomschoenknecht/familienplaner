@@ -847,7 +847,7 @@ function VorliebenView({ vorlieben, setVorlieben }) {
             {v.mag.length === 0 && <span style={{ color: "#86efac", fontSize: 13 }}>Noch nichts eingetragen…</span>}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <input value={neuMag} onChange={e => setNeuMag(e.target.value)} onKeyDown={e => e.key === "Enter" && addMag()} placeholder="z.B. Pasta, Pizza…" style={{ ...inputStyle, flex: 1 }} />
+            <input value={neuMag} onChange={e => setNeuMag(e.target.value)} onKeyDown={e => e.key === "Enter" && addMag()} placeholder="z.B. Pasta, Pizza…" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false" style={{ ...inputStyle, flex: 1 }} />
             <button onClick={addMag} style={btnStyle("#16a34a")}>+ Hinzufügen</button>
           </div>
         </div>
@@ -863,7 +863,7 @@ function VorliebenView({ vorlieben, setVorlieben }) {
             {v.magNicht.length === 0 && <span style={{ color: "#fca5a5", fontSize: 13 }}>Noch nichts eingetragen…</span>}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <input value={neuMagNicht} onChange={e => setNeuMagNicht(e.target.value)} onKeyDown={e => e.key === "Enter" && addMagNicht()} placeholder="z.B. Fisch, Scharf…" style={{ ...inputStyle, flex: 1 }} />
+            <input value={neuMagNicht} onChange={e => setNeuMagNicht(e.target.value)} onKeyDown={e => e.key === "Enter" && addMagNicht()} placeholder="z.B. Fisch, Scharf…" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false" style={{ ...inputStyle, flex: 1 }} />
             <button onClick={addMagNicht} style={btnStyle("#dc2626")}>+ Hinzufügen</button>
           </div>
         </div>
