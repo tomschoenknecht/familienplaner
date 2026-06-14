@@ -1315,6 +1315,11 @@ function App() {
   // Sync-State
   const [syncConfig, setSyncConfigRaw] = useState(() => load("sync_config", null));
   const [syncStatus, setSyncStatus] = useState("offline");
+  // Beim ersten Laden mit gespeicherter Sync-Config: zeige Ladeansicht, bis Cloud-Daten da sind
+  const [initialSyncPending, setInitialSyncPending] = useState(() => {
+    const cfg = load("sync_config", null);
+    return !!(cfg?.url && cfg?.key && cfg?.household);
+  });
 
   const setSyncConfig = useCallback((cfg) => {
     if (cfg) { try { localStorage.setItem("sync_config", JSON.stringify(cfg)); } catch {} }
@@ -1335,11 +1340,19 @@ function App() {
     }
   }, []);
 
+  // Sicherheits-Timeout: falls Sync nach 8s nicht reagiert, Ladeansicht trotzdem beenden
+  useEffect(() => {
+    if (!initialSyncPending) return;
+    const t = setTimeout(() => setInitialSyncPending(false), 8000);
+    return () => clearTimeout(t);
+  }, [initialSyncPending]);
+
   // Verbinden, wenn Config vorhanden
   useEffect(() => {
     if (!syncConfig?.url || !syncConfig?.key || !syncConfig?.household) {
       disconnectSync();
       setSyncStatus("offline");
+      setInitialSyncPending(false);
       return;
     }
     let aktiv = true;
@@ -1357,13 +1370,23 @@ function App() {
             await pushOne(k, aktuelleDaten[k]);  // lokale Daten in die Cloud hochladen
           }
         }
-        if (aktiv) setSyncStatus("online");
+        if (aktiv) { setSyncStatus("online"); setInitialSyncPending(false); }
       })
-      .catch(() => { if (aktiv) setSyncStatus("error"); });
+      .catch(() => { if (aktiv) { setSyncStatus("error"); setInitialSyncPending(false); } });
 
     return () => { aktiv = false; disconnectSync(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [syncConfig]);
+
+  if (initialSyncPending) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#e8f4f8", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>🍽️</div>
+        <div style={{ fontSize: 16, color: "#475569", fontWeight: 600 }}>Daten werden geladen…</div>
+        <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 6 }}>Verbinde mit Cloud-Speicher</div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: "#e8f4f8", fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
