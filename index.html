@@ -413,15 +413,23 @@ function WochenplanView({ wochenplan, setWochenplan, rezepte, vorlieben, kalende
   };
 
   const generiereEinkaufsliste = () => {
+    const aktuelleById = {};
+    [...rezepte, ...ABENTEUER_REZEPTE].forEach(r => { aktuelleById[r.id] = r; });
+
     const zutatenMap = {}; // key: "name|einheit" -> { name, einheit, menge }
     Object.entries(plan).forEach(([tag, mahlzeitenDesTages]) => {
       Object.entries(mahlzeitenDesTages).forEach(([m, mahlzeit]) => {
-        if (mahlzeit?.zutaten) {
+        let zutatenListe = mahlzeit?.zutaten;
+        // Falls im Plan noch alte String-Zutaten gespeichert sind, aktuelle Zutaten des Rezepts (mit Mengen) verwenden
+        if (zutatenListe?.some(z => typeof z === "string") && mahlzeit?.id && aktuelleById[mahlzeit.id]) {
+          zutatenListe = aktuelleById[mahlzeit.id].zutaten;
+        }
+        if (zutatenListe) {
           // Rezept-Mengen sind für 4 Personen kalkuliert -> auf tatsächliche Anwesenheit skalieren
           const anwesendCount = anwesendAn(tag, m).length;
           const faktor = anwesendCount / FAMILIE.length;
           if (faktor <= 0) return;
-          mahlzeit.zutaten.forEach(z => {
+          zutatenListe.forEach(z => {
             const name = (typeof z === "string") ? z.trim() : (z.name || "").trim();
             const einheit = (typeof z === "string") ? "Portion" : (z.einheit || "Portion");
             const basisMenge = (typeof z === "string") ? 1 : (z.menge || 0);
@@ -1248,7 +1256,23 @@ const rezeptZeileStyle = { background: "#f8fafc", border: "1px solid #e2e8f0", b
 
 function App() {
   const [tab, setTab] = useState("wochenplan");
-  const [rezepte, setRezepte] = useState(() => load("rezepte", STARTER_REZEPTE));
+  const [rezepte, setRezepte] = useState(() => {
+    const geladen = load("rezepte", STARTER_REZEPTE);
+    // Migration: alte Rezepte mit String-Zutaten (vor Mengen-Update) durch aktuelle Versionen ersetzen
+    const aktuelleById = {};
+    [...STARTER_REZEPTE, ...ABENTEUER_REZEPTE].forEach(r => { aktuelleById[r.id] = r; });
+    return geladen.map(r => {
+      const hatAlteZutaten = Array.isArray(r.zutaten) && r.zutaten.some(z => typeof z === "string");
+      if (hatAlteZutaten && aktuelleById[r.id]) {
+        return { ...r, zutaten: aktuelleById[r.id].zutaten };
+      }
+      if (hatAlteZutaten) {
+        // Unbekanntes/eigenes Rezept mit altem Format -> in neues Format überführen (1 Portion je Zutat)
+        return { ...r, zutaten: r.zutaten.map(z => typeof z === "string" ? { name: z, menge: 1, einheit: "Portion" } : z) };
+      }
+      return r;
+    });
+  });
   const [vorlieben, setVorlieben] = useState(() => load("vorlieben", DEFAULT_VORLIEBEN));
   const [kalender, setKalender] = useState(() => load("kalender", {}));
   const [wochenplan, setWochenplan] = useState(() => load("wochenplan", {}));
