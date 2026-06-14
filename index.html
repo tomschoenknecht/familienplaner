@@ -1,0 +1,1360 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Familienplaner</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  html, body, #root { margin: 0; padding: 0; min-height: 100vh; }
+  * { box-sizing: border-box; }
+  body { font-family: 'Inter', 'Segoe UI', sans-serif; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useCallback } = React;
+
+
+// ─── Konstanten ────────────────────────────────────────────────────────────────
+const FAMILIE = ["Jette", "Ylvie", "Juliane", "Tom"];
+const AVATARE = { Jette: "🌸", Ylvie: "⭐", Juliane: "🌿", Tom: "🎸" };
+const FARBEN = { Jette: "#f9a8d4", Ylvie: "#fcd34d", Juliane: "#6ee7b7", Tom: "#93c5fd" };
+const WOCHENTAGE = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
+const MAHLZEITEN = ["Frühstück", "Brotbox", "Mittagessen", "Abendessen"];
+
+const MAHLZEIT_META = {
+  "Frühstück":   { emoji: "🌅", farbe: "#fef3c7", textfarbe: "#92400e" },
+  "Brotbox":     { emoji: "🎒", farbe: "#dbeafe", textfarbe: "#1e40af" },
+  "Mittagessen": { emoji: "☀️",  farbe: "#dcfce7", textfarbe: "#166534" },
+  "Abendessen":  { emoji: "🌙", farbe: "#f3e8ff", textfarbe: "#6b21a8" },
+};
+
+// Supermarkt-Kategorien: Zutat → Abteilung
+const SUPERMARKT_KATEGORIEN = {
+  "🥦 Obst & Gemüse": [
+    "Tomaten","Paprika","Zwiebeln","Knoblauch","Möhren","Sellerie","Lauch","Brokkoli","Spinat","Zucchini",
+    "Kartoffeln","Süßkartoffeln","Salat","Eisbergsalat","Gurken","Kohl","Ingwer","Limette","Zitrone",
+    "Apfel","Banane","Erdbeeren","Avocado","Mais","Erbsen","Kichererbsen","Pilze","Champignons",
+    "Frühlingszwiebeln","Kürbis","Hokkaido-Kürbis","Petersilie","Basilikum","Schnittlauch","Dill",
+    "Koriander","Apfelmus","Oliven","Kapern","Pickles","Große Kartoffeln",
+  ],
+  "🥩 Fleisch & Wurst": [
+    "Hackfleisch","Hähnchenbrust","Hähnchenfleisch","Kalbsschnitzel","Speck","Salami","Würstchen",
+    "Rindfleisch","Hühnchen","Lammfleisch","Putenbrust","Chorizo","Pancetta",
+  ],
+  "🐟 Fisch & Meeresfrüchte": [
+    "Lachsfilet","Fischstäbchen","Thunfisch","Garnelen","Kabeljau","Forelle","Hering","Sardinen",
+    "Räucherlachs","Meeresfrüchte",
+  ],
+  "🧀 Kühlregal": [
+    "Eier","Butter","Milch","Sahne","Crème fraîche","Joghurt","Mozzarella","Parmesan","Cheddar",
+    "Gouda","Feta","Ricotta","Emmentaler","Sauerrahm","Schmand","Frischkäse","Quark","Remoulade",
+    "Mayonnaise","Senf-Mayo-Dressing","Schlagsahne",
+  ],
+  "❄️ Tiefkühlkost": [
+    "Pommes","Tiefkühl-Spinat","Tiefkühl-Erbsen","Tiefkühl-Mais","Fischstäbchen (TK)",
+    "Tiefkühl-Brokkoli","Pizza (TK)","Tiefkühl-Gemüse",
+  ],
+  "🍞 Backwaren & Brot": [
+    "Toastbrot","Brötchen","Baguette","Brot","Laugenbrezel","Fladenbrot","Tortillas","Taco-Schalen",
+    "Hotdog-Brötchen","Burgerbrötchen","Hefeteig","Pizzateig","Pita","Filoteig",
+  ],
+  "🥫 Trockenwaren & Konserven": [
+    "Spaghetti","Penne","Farfalle","Fusilli","Lasagneplatten","Maccaroni","Cannelloni","Nudeln",
+    "Reis","Arborio-Reis","Reisnudeln","Haferflocken","Mehl","Zucker","Salz","Schwarzer Pfeffer",
+    "Muskat","Cumin","Curry","Oregano","Zimt","Paprikapulver","Gewürze","Hefe","Backpulver",
+    "Semmelbrösel","Tomaten (Dose)","Passata","Tomatensauce","Salsa","Thunfisch","Kokosmilch",
+    "Brühe","Linsen","Rote Linsen","Gochujang","Sojasoße","Sesamöl","Olivenöl","Öl","Sternanis",
+  ],
+  "🧴 Saucen & Gewürze": [
+    "Ketchup","Senf","Worcestershiresauce","Tabasco","Balsamico","Ahornsirup","Okonomiyaki-Sauce",
+  ],
+  "🍫 Süßes & Backzutaten": [
+    "Schokolade","Kakao","Vanille","Puderzucker","Honig","Marmelade","Nuss-Nougat-Creme",
+  ],
+  "🧺 Sonstiges": [],
+};
+
+function kategorieVonZutat(zutat) {
+  const z = zutat.toLowerCase();
+  for (const [kat, liste] of Object.entries(SUPERMARKT_KATEGORIEN)) {
+    if (liste.some(l => z.includes(l.toLowerCase()) || l.toLowerCase().includes(z))) return kat;
+  }
+  return "🧺 Sonstiges";
+}
+
+const STARTER_REZEPTE = [
+  // ── Pasta & Nudeln ─────────────────────────────────────────────────────────
+  { id: "r1",  name: "Spaghetti Bolognese",           kategorie: "Pasta",       dauer: 40, zutaten: ["Hackfleisch", "Tomaten", "Zwiebeln", "Knoblauch", "Spaghetti", "Parmesan"], tags: ["Klassiker", "Kinder mögen's"], link: "https://www.chefkoch.de/rezepte/3064461468617654/Spaghetti-Bolognese.html", bewertungen: {} },
+  { id: "r2",  name: "Nudeln mit Tomatensauce",        kategorie: "Pasta",       dauer: 20, zutaten: ["Penne", "Passata", "Knoblauch", "Olivenöl", "Basilikum", "Parmesan"], tags: ["Schnell", "Kinder mögen's", "Klassiker"], link: "https://www.chefkoch.de/rezepte/523361140885611/Pasta-mit-Tomatensauce.html", bewertungen: {} },
+  { id: "r3",  name: "Mac & Cheese",                   kategorie: "Pasta",       dauer: 25, zutaten: ["Maccaroni", "Butter", "Mehl", "Milch", "Cheddar", "Muskat"], tags: ["Kinder mögen's", "Comfort Food"], link: "https://www.chefkoch.de/rezepte/2386451374824632/Mac-and-Cheese.html", bewertungen: {} },
+  { id: "r4",  name: "Spaghetti Carbonara",            kategorie: "Pasta",       dauer: 25, zutaten: ["Spaghetti", "Speck", "Eier", "Parmesan", "Schwarzer Pfeffer"], tags: ["Klassiker", "Kinder mögen's"], link: "https://www.chefkoch.de/rezepte/894971196540917/Spaghetti-Carbonara.html", bewertungen: {} },
+  { id: "r5",  name: "Nudeln mit Käsesauce",           kategorie: "Pasta",       dauer: 20, zutaten: ["Farfalle", "Butter", "Sahne", "Gouda", "Muskat"], tags: ["Schnell", "Kinder mögen's"], link: "https://www.chefkoch.de/rezepte/682531170512936/Nudeln-mit-Kaesesauce.html", bewertungen: {} },
+  { id: "r6",  name: "Lasagne",                        kategorie: "Pasta",       dauer: 75, zutaten: ["Lasagneplatten", "Hackfleisch", "Tomaten", "Béchamelsauce", "Parmesan", "Mozzarella"], tags: ["Klassiker", "Kinder mögen's", "Familienessen"], link: "https://www.chefkoch.de/rezepte/898151196862953/Lasagne.html", bewertungen: {} },
+  // ── Pizza ──────────────────────────────────────────────────────────────────
+  { id: "r7",  name: "Pizza Margherita",               kategorie: "Pizza",       dauer: 60, zutaten: ["Mehl", "Tomaten", "Mozzarella", "Basilikum", "Hefe"], tags: ["Klassiker", "Kinder mögen's"], link: "https://www.chefkoch.de/rezepte/1166891217899597/Pizza-Margherita.html", bewertungen: {} },
+  { id: "r8",  name: "Pizza Salami",                   kategorie: "Pizza",       dauer: 60, zutaten: ["Pizzateig", "Tomatensauce", "Salami", "Mozzarella", "Oregano"], tags: ["Kinder mögen's", "Klassiker"], link: "https://www.chefkoch.de/rezepte/1012251199958060/Pizza-Salami.html", bewertungen: {} },
+  { id: "r9",  name: "Mini-Pizzas vom Blech",          kategorie: "Pizza",       dauer: 35, zutaten: ["Hefeteig", "Tomatensauce", "Käse", "Mais", "Paprika", "Oliven"], tags: ["Kinder mögen's", "Spaßig", "Selbst belegen"], link: "https://www.chefkoch.de/rezepte/2008171316393700/Mini-Pizzen.html", bewertungen: {} },
+  // ── Kartoffeln ─────────────────────────────────────────────────────────────
+  { id: "r10", name: "Kartoffelpüree mit Fischstäbchen", kategorie: "Kartoffeln", dauer: 30, zutaten: ["Kartoffeln", "Butter", "Milch", "Fischstäbchen", "Muskat", "Salz"], tags: ["Kinder mögen's", "Klassiker", "Fisch"], link: "https://www.chefkoch.de/rezepte/2558801407726254/Kartoffelpueree-mit-Fischstaebchen.html", bewertungen: {} },
+  { id: "r11", name: "Bratkartoffeln mit Spiegelei",   kategorie: "Kartoffeln",  dauer: 35, zutaten: ["Kartoffeln", "Zwiebeln", "Speck", "Eier", "Butter", "Petersilie"], tags: ["Kinder mögen's", "Klassiker"], link: "https://www.chefkoch.de/rezepte/525181141193133/Bratkartoffeln-mit-Spiegelei.html", bewertungen: {} },
+  { id: "r12", name: "Ofenkartoffeln mit Sauerrahm",   kategorie: "Kartoffeln",  dauer: 60, zutaten: ["Große Kartoffeln", "Sauerrahm", "Schnittlauch", "Butter", "Cheddar"], tags: ["Kinder mögen's", "Einfach"], link: "https://www.chefkoch.de/rezepte/562751148957936/Ofenkartoffeln.html", bewertungen: {} },
+  { id: "r13", name: "Kartoffelsuppe",                 kategorie: "Suppe",       dauer: 40, zutaten: ["Kartoffeln", "Möhren", "Sellerie", "Lauch", "Brühe", "Sahne", "Würstchen"], tags: ["Kinder mögen's", "Suppe", "Wohlfühlessen"], link: "https://www.chefkoch.de/rezepte/504001133989052/Kartoffelsuppe.html", bewertungen: {} },
+  { id: "r14", name: "Herzhafte Kartoffelpuffer",      kategorie: "Kartoffeln",  dauer: 35, zutaten: ["Kartoffeln", "Eier", "Mehl", "Zwiebeln", "Öl", "Apfelmus"], tags: ["Kinder mögen's", "Klassiker", "Vegetarisch"], link: "https://www.chefkoch.de/rezepte/531591143244558/Kartoffelpuffer.html", bewertungen: {} },
+  // ── Fleisch & Geflügel ─────────────────────────────────────────────────────
+  { id: "r15", name: "Hähnchen-Nuggets selbst gemacht", kategorie: "Hähnchen",   dauer: 30, zutaten: ["Hähnchenbrust", "Semmelbrösel", "Eier", "Mehl", "Paprika", "Öl"], tags: ["Kinder mögen's", "Finger Food"], link: "https://www.chefkoch.de/rezepte/2058791323694548/Haehnchenstreifen-selbstgemacht.html", bewertungen: {} },
+  { id: "r16", name: "Hähnchen-Wraps",                 kategorie: "Hähnchen",    dauer: 25, zutaten: ["Hähnchenbrust", "Tortillas", "Salat", "Tomaten", "Joghurt", "Gurke"], tags: ["Schnell", "Kinder mögen's"], link: "https://www.chefkoch.de/rezepte/1082531209413148/Haenchen-Wraps.html", bewertungen: {} },
+  { id: "r17", name: "Wiener Schnitzel mit Pommes",    kategorie: "Fleisch",     dauer: 35, zutaten: ["Kalbsschnitzel", "Semmelbrösel", "Eier", "Mehl", "Butter", "Kartoffeln"], tags: ["Klassiker", "Kinder mögen's", "Festessen"], link: "https://www.chefkoch.de/rezepte/1076811208491006/Wiener-Schnitzel.html", bewertungen: {} },
+  { id: "r18", name: "Hackbällchen in Tomatensauce",   kategorie: "Fleisch",     dauer: 40, zutaten: ["Hackfleisch", "Zwiebeln", "Ei", "Semmelbrösel", "Tomaten", "Kräuter"], tags: ["Kinder mögen's", "Klassiker"], link: "https://www.chefkoch.de/rezepte/1041891204040836/Hackbaellchen.html", bewertungen: {} },
+  { id: "r19", name: "Tacos",                          kategorie: "Mexikanisch",  dauer: 30, zutaten: ["Taco-Schalen", "Hackfleisch", "Salsa", "Käse", "Avocado", "Limette"], tags: ["Spaßig", "Kinder mögen's"], link: "https://www.chefkoch.de/rezepte/2348011371050420/Tacos.html", bewertungen: {} },
+  { id: "r20", name: "Döner-Bowl",                     kategorie: "Hähnchen",    dauer: 30, zutaten: ["Hähnchenfleisch", "Joghurt", "Salat", "Tomate", "Gurke", "Reis", "Fladenbrot"], tags: ["Kinder mögen's", "Beliebt"], link: "https://www.chefkoch.de/rezepte/2898721452018636/Doner-Bowl.html", bewertungen: {} },
+  // ── Fisch ──────────────────────────────────────────────────────────────────
+  { id: "r21", name: "Fischstäbchen mit Remoulade",    kategorie: "Fisch",       dauer: 20, zutaten: ["Fischstäbchen", "Remoulade", "Pommes", "Zitrone"], tags: ["Kinder mögen's", "Schnell", "Klassiker"], link: "https://www.chefkoch.de/rezepte/1024051202031988/Fischstaebchen.html", bewertungen: {} },
+  { id: "r22", name: "Lachs mit Brokkoli & Reis",      kategorie: "Fisch",       dauer: 30, zutaten: ["Lachsfilet", "Brokkoli", "Reis", "Zitrone", "Olivenöl", "Dill"], tags: ["Gesund", "Fisch", "Kinder mögen's"], link: "https://www.chefkoch.de/rezepte/3076791469726804/Lachs-mit-Gemuese.html", bewertungen: {} },
+  { id: "r23", name: "Thunfisch-Pasta",                kategorie: "Pasta",       dauer: 20, zutaten: ["Penne", "Thunfisch", "Tomaten", "Zwiebeln", "Olivenöl", "Kapern"], tags: ["Schnell", "Fisch", "Kinder mögen's"], link: "https://www.chefkoch.de/rezepte/1036041203420882/Thunfisch-Pasta.html", bewertungen: {} },
+  // ── Gemüse ─────────────────────────────────────────────────────────────────
+  { id: "r24", name: "Brokkoli-Käse-Auflauf",          kategorie: "Gemüse",      dauer: 45, zutaten: ["Brokkoli", "Kartoffeln", "Käse", "Sahne", "Eier", "Muskat"], tags: ["Gesund", "Kinder mögen's", "Vegetarisch"], link: "https://www.chefkoch.de/rezepte/795561183041766/Brokkoli-Kartoffel-Auflauf.html", bewertungen: {} },
+  { id: "r25", name: "Brokkoli-Nudeln mit Käse",       kategorie: "Pasta",       dauer: 25, zutaten: ["Fusilli", "Brokkoli", "Butter", "Parmesan", "Knoblauch", "Sahne"], tags: ["Gesund", "Kinder mögen's", "Vegetarisch"], link: "https://www.chefkoch.de/rezepte/1600141267614498/Nudeln-mit-Brokkoli.html", bewertungen: {} },
+  { id: "r26", name: "Cheeseburgersalat",              kategorie: "Salat",       dauer: 25, zutaten: ["Hackfleisch", "Eisbergsalat", "Tomaten", "Gurken", "Cheddar", "Senf-Mayo-Dressing", "Pickles"], tags: ["Kinder mögen's", "Spaßig", "Lecker"], link: "https://www.chefkoch.de/rezepte/2941831458019828/Cheeseburger-Salat.html", bewertungen: {} },
+  { id: "r27", name: "Zucchini-Puffer",               kategorie: "Gemüse",      dauer: 30, zutaten: ["Zucchini", "Eier", "Mehl", "Parmesan", "Knoblauch", "Joghurt-Dip"], tags: ["Vegetarisch", "Gesund", "Kinder mögen's"], link: "https://www.chefkoch.de/rezepte/2196011356208984/Zucchini-Puffer.html", bewertungen: {} },
+  { id: "r28", name: "Gemüse-Spieße vom Grill",       kategorie: "Gemüse",      dauer: 25, zutaten: ["Zucchini", "Paprika", "Champignons", "Zwiebeln", "Olivenöl", "Kräuter"], tags: ["Sommer", "Kinder mögen's", "Grillen"], link: "https://www.chefkoch.de/rezepte/1088861210199530/Gemuese-Spiesse.html", bewertungen: {} },
+  { id: "r29", name: "Gemüsecurry mit Kokosmilch",    kategorie: "Vegetarisch",  dauer: 35, zutaten: ["Kichererbsen", "Kokosmilch", "Curry", "Kartoffeln", "Spinat", "Ingwer"], tags: ["Gesund", "Vegetarisch"], link: "https://www.chefkoch.de/rezepte/2099351332567833/Veganes-Kichererbsen-Curry.html", bewertungen: {} },
+  { id: "r30", name: "Mais-Fritters",                  kategorie: "Snack",       dauer: 20, zutaten: ["Mais", "Mehl", "Eier", "Frühlingszwiebeln", "Käse", "Joghurt-Dip"], tags: ["Finger Food", "Kinder mögen's", "Schnell"], link: "https://www.chefkoch.de/rezepte/2701711425048640/Mais-Fritters.html", bewertungen: {} },
+  // ── Suppen & Eintöpfe ──────────────────────────────────────────────────────
+  { id: "r31", name: "Tomatensuppe mit Croutons",      kategorie: "Suppe",       dauer: 30, zutaten: ["Tomaten", "Zwiebeln", "Knoblauch", "Brühe", "Sahne", "Toastbrot", "Butter"], tags: ["Kinder mögen's", "Suppe", "Klassiker"], link: "https://www.chefkoch.de/rezepte/516351137718000/Tomatensuppe.html", bewertungen: {} },
+  { id: "r32", name: "Linsensuppe",                    kategorie: "Suppe",       dauer: 45, zutaten: ["Rote Linsen", "Möhren", "Sellerie", "Zwiebeln", "Cumin", "Zitrone"], tags: ["Gesund", "Günstig", "Vegetarisch"], link: "https://www.chefkoch.de/rezepte/1017921201116842/Rote-Linsensuppe.html", bewertungen: {} },
+  { id: "r33", name: "Hühnersuppe mit Nudeln",         kategorie: "Suppe",       dauer: 60, zutaten: ["Hühnchen", "Möhren", "Sellerie", "Lauch", "Suppennudeln", "Petersilie"], tags: ["Klassiker", "Kinder mögen's", "Wohlfühlessen"], link: "https://www.chefkoch.de/rezepte/552201146624964/Huehnerbouillon.html", bewertungen: {} },
+  { id: "r34", name: "Kürbissuppe",                    kategorie: "Suppe",       dauer: 35, zutaten: ["Hokkaido-Kürbis", "Kartoffeln", "Kokosmilch", "Ingwer", "Brühe", "Kürbiskerne"], tags: ["Herbst", "Vegetarisch", "Kinder mögen's"], link: "https://www.chefkoch.de/rezepte/1191221220861010/Kuerbissuppe.html", bewertungen: {} },
+  // ── Frühstück & Süßes ──────────────────────────────────────────────────────
+  { id: "r35", name: "Pfannkuchen",                    kategorie: "Frühstück",   dauer: 20, zutaten: ["Mehl", "Eier", "Milch", "Butter", "Zucker"], tags: ["Kinder mögen's", "Frühstück", "Süß"], link: "https://www.chefkoch.de/rezepte/696171172695260/Pfannkuchen.html", bewertungen: {} },
+  { id: "r36", name: "Waffeln mit Erdbeeren",          kategorie: "Frühstück",   dauer: 25, zutaten: ["Mehl", "Eier", "Milch", "Butter", "Zucker", "Erdbeeren", "Schlagsahne"], tags: ["Kinder mögen's", "Süß", "Wochenende"], link: "https://www.chefkoch.de/rezepte/610981159310284/Waffeln.html", bewertungen: {} },
+  { id: "r37", name: "French Toast",                   kategorie: "Frühstück",   dauer: 15, zutaten: ["Toastbrot", "Eier", "Milch", "Zimt", "Zucker", "Butter", "Ahornsirup"], tags: ["Kinder mögen's", "Frühstück", "Süß"], link: "https://www.chefkoch.de/rezepte/1038411203597226/French-Toast.html", bewertungen: {} },
+  { id: "r38", name: "Bananen-Haferflocken-Pancakes",  kategorie: "Frühstück",   dauer: 20, zutaten: ["Bananen", "Haferflocken", "Eier", "Milch", "Zimt", "Ahornsirup"], tags: ["Gesund", "Kinder mögen's", "Frühstück"], link: "https://www.chefkoch.de/rezepte/2479481395349460/Bananen-Pancakes.html", bewertungen: {} },
+  // ── Burger & Sandwiches ────────────────────────────────────────────────────
+  { id: "r39", name: "Selbst gemachte Burger",         kategorie: "Burger",      dauer: 30, zutaten: ["Hackfleisch", "Burgerbrötchen", "Salat", "Tomaten", "Käse", "Gurken", "Ketchup"], tags: ["Kinder mögen's", "Spaßig", "Wochenende"], link: "https://www.chefkoch.de/rezepte/2031031319617792/Hamburger-selbst-gemacht.html", bewertungen: {} },
+  { id: "r40", name: "Quesadillas mit Käse & Hähnchen", kategorie: "Mexikanisch", dauer: 20, zutaten: ["Tortillas", "Hähnchenbrust", "Cheddar", "Paprika", "Maiskörner", "Sauerrahm"], tags: ["Schnell", "Kinder mögen's", "Finger Food"], link: "https://www.chefkoch.de/rezepte/1570291264316388/Quesadillas.html", bewertungen: {} },
+  { id: "r41", name: "Hotdog mit selbst gemachtem Coleslaw", kategorie: "Snack", dauer: 20, zutaten: ["Würstchen", "Hotdog-Brötchen", "Kohl", "Möhren", "Mayonnaise", "Senf"], tags: ["Kinder mögen's", "Sommer", "Grillen"], link: "https://www.chefkoch.de/rezepte/2202591356919336/Hot-Dog.html", bewertungen: {} },
+  // ── Reis & Getreide ────────────────────────────────────────────────────────
+  { id: "r42", name: "Gebratener Reis mit Ei & Gemüse", kategorie: "Reis",       dauer: 25, zutaten: ["Reis", "Eier", "Erbsen", "Möhren", "Frühlingszwiebeln", "Sojasoße", "Sesamöl"], tags: ["Schnell", "Kinder mögen's", "Asiatisch"], link: "https://www.chefkoch.de/rezepte/1053601205671226/Gebratener-Reis.html", bewertungen: {} },
+  { id: "r43", name: "Reispfanne mit Hähnchen",         kategorie: "Reis",        dauer: 30, zutaten: ["Reis", "Hähnchenbrust", "Paprika", "Zwiebeln", "Tomaten", "Knoblauch", "Gewürze"], tags: ["Kinder mögen's", "Familienessen"], link: "https://www.chefkoch.de/rezepte/1078001208720000/Haehnchenreispfanne.html", bewertungen: {} },
+  { id: "r44", name: "Risotto mit Parmesan",            kategorie: "Reis",        dauer: 40, zutaten: ["Arborio-Reis", "Parmesan", "Butter", "Weißwein", "Brühe", "Zwiebeln"], tags: ["Klassiker", "Kinder mögen's", "Cremig"], link: "https://www.chefkoch.de/rezepte/1024241202051660/Risotto.html", bewertungen: {} },
+  // ── Eier ───────────────────────────────────────────────────────────────────
+  { id: "r45", name: "Rührei mit Toast & Tomaten",     kategorie: "Frühstück",   dauer: 10, zutaten: ["Eier", "Butter", "Milch", "Toastbrot", "Tomaten", "Schnittlauch"], tags: ["Schnell", "Kinder mögen's", "Frühstück"], link: "https://www.chefkoch.de/rezepte/541831144706568/Ruehrei.html", bewertungen: {} },
+  { id: "r46", name: "Omelett mit Käse & Pilzen",      kategorie: "Eier",        dauer: 15, zutaten: ["Eier", "Champignons", "Käse", "Butter", "Petersilie", "Salz"], tags: ["Schnell", "Kinder mögen's", "Vegetarisch"], link: "https://www.chefkoch.de/rezepte/524721141097940/Pilzomelette.html", bewertungen: {} },
+  // ── Vegetarisch ────────────────────────────────────────────────────────────
+  { id: "r47", name: "Spinat-Ricotta-Cannelloni",      kategorie: "Pasta",       dauer: 55, zutaten: ["Cannelloni", "Spinat", "Ricotta", "Tomaten", "Mozzarella", "Knoblauch"], tags: ["Vegetarisch", "Kinder mögen's", "Familienessen"], link: "https://www.chefkoch.de/rezepte/888551195433988/Cannelloni-mit-Spinat-Ricotta-Fuellung.html", bewertungen: {} },
+  { id: "r48", name: "Käsespätzle",                    kategorie: "Deutsch",     dauer: 40, zutaten: ["Mehl", "Eier", "Milch", "Emmentaler", "Zwiebeln", "Butter"], tags: ["Klassiker", "Kinder mögen's", "Comfort Food"], link: "https://www.chefkoch.de/rezepte/518271138059948/Kaesespaetzle.html", bewertungen: {} },
+  { id: "r49", name: "Flammkuchen",                    kategorie: "Backen",      dauer: 30, zutaten: ["Pizzateig", "Crème fraîche", "Speck", "Zwiebeln", "Schnittlauch"], tags: ["Klassiker", "Kinder mögen's", "Schnell"], link: "https://www.chefkoch.de/rezepte/1013411200290928/Flammkuchen.html", bewertungen: {} },
+  { id: "r50", name: "Gemüse-Nudelauflauf",            kategorie: "Auflauf",     dauer: 50, zutaten: ["Penne", "Zucchini", "Paprika", "Tomaten", "Sahne", "Käse", "Kräuter"], tags: ["Vegetarisch", "Kinder mögen's", "Familienessen"], link: "https://www.chefkoch.de/rezepte/1013971200359724/Nudelauflauf.html", bewertungen: {} },
+];
+
+const ABENTEUER_REZEPTE = [
+  { id: "a1", name: "Okonomiyaki", kategorie: "Japan", abenteuer: "🗾 Japanisches Abenteuer", dauer: 35, zutaten: ["Kohl", "Eier", "Mehl", "Garnelen", "Okonomiyaki-Sauce", "Mayonnaise"], beschreibung: "Japanische Pfannkuchen – außen knusprig, innen weich!", link: "https://www.chefkoch.de/rezepte/2456661392148280/Okonomiyaki.html", bewertungen: {} },
+  { id: "a2", name: "Shakshuka", kategorie: "Naher Osten", abenteuer: "🌶️ Experiment für Mutige", dauer: 25, zutaten: ["Eier", "Tomaten", "Paprika", "Cumin", "Koriander", "Feta"], beschreibung: "Pochierte Eier in würziger Tomatensauce – wie Feuer im Topf!", link: "https://www.chefkoch.de/rezepte/2154281348497052/Shakshuka.html", bewertungen: {} },
+  { id: "a3", name: "Bibimbap", kategorie: "Korea", abenteuer: "🇰🇷 Koreanische Entdeckung", dauer: 40, zutaten: ["Reis", "Rindfleisch", "Spinat", "Möhren", "Zucchini", "Gochujang"], beschreibung: "Bunter koreanischer Reistopf – jeder mixt sich seinen eigenen!", link: "https://www.chefkoch.de/rezepte/2469661393897740/Bibimbap.html", bewertungen: {} },
+  { id: "a4", name: "Mole Negro", kategorie: "Mexiko", abenteuer: "🍫 Schokolade im Abendessen?!", dauer: 90, zutaten: ["Hühnchen", "Chilischoten", "Schokolade", "Tomaten", "Gewürze"], beschreibung: "Mexikanische Sauce mit echter dunkler Schokolade – klingt verrückt, schmeckt fantastisch!", link: "https://www.chefkoch.de/rezepte/2218201356723628/Mole-negro.html", bewertungen: {} },
+  { id: "a5", name: "Börek", kategorie: "Türkei", abenteuer: "🥐 Türkisches Abenteuer", dauer: 50, zutaten: ["Filoteig", "Feta", "Spinat", "Eier", "Butter"], beschreibung: "Knuspriges Blätterteiggebäck mit Käsefüllung – knackknack!", link: "https://www.chefkoch.de/rezepte/1017741201109026/Boerek.html", bewertungen: {} },
+  { id: "a6", name: "Pho Bo", kategorie: "Vietnam", abenteuer: "🍜 Reise nach Vietnam", dauer: 120, zutaten: ["Rinderbrühe", "Reisnudeln", "Rindfleisch", "Ingwer", "Sternanis", "Limette", "Basilikum"], beschreibung: "Die berühmteste Suppe Vietnams – ein Ritual in der Schüssel!", link: "https://www.chefkoch.de/rezepte/2468661393747900/Pho-Bo.html", bewertungen: {} },
+];
+
+const DEFAULT_VORLIEBEN = {
+  Jette: { mag: ["Pasta", "Pizza", "Pfannkuchen"], magNicht: ["Fisch", "Scharf"] },
+  Ylvie: { mag: ["Pizza", "Süßes", "Hähnchen"], magNicht: ["Gemüse pur"] },
+  Juliane: { mag: ["Vegetarisch", "Salat", "Fisch"], magNicht: ["Fast Food"] },
+  Tom: { mag: ["Fleisch", "Grillen", "Curry"], magNicht: ["Süßes zum Hauptgang"] },
+};
+
+// ─── Storage & Sync Layer ───────────────────────────────────────────────────
+// Lokaler Speicher (immer aktiv, funktioniert auch offline)
+const load = (key, fallback) => {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+  catch { return fallback; }
+};
+
+// Supabase-Verbindung (modulweit, damit save() überall pushen kann)
+let _sb = null;            // Supabase-Client
+let _household = null;     // Haushalts-Code
+let _channel = null;       // Realtime-Channel
+let _libPromise = null;    // Lade-Promise der Bibliothek
+const DATEN_KEYS = ["rezepte", "vorlieben", "kalender", "wochenplan", "verlauf"];
+
+function loadSupabaseLib() {
+  if (typeof window !== "undefined" && window.supabase) return Promise.resolve(window.supabase);
+  if (_libPromise) return _libPromise;
+  _libPromise = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+    s.onload = () => resolve(window.supabase);
+    s.onerror = () => reject(new Error("Supabase-Bibliothek konnte nicht geladen werden"));
+    document.head.appendChild(s);
+  });
+  return _libPromise;
+}
+
+async function connectSync({ url, key, household }, onRemote) {
+  const lib = await loadSupabaseLib();
+  _sb = lib.createClient(url, key);
+  _household = household;
+  // Realtime-Abo für diesen Haushalt
+  _channel = _sb
+    .channel("familienplaner-" + household)
+    .on("postgres_changes",
+      { event: "*", schema: "public", table: "familienplaner_data", filter: `household=eq.${household}` },
+      payload => {
+        const row = payload.new;
+        if (row && onRemote) onRemote(row.key, row.value);
+      })
+    .subscribe();
+  return _sb;
+}
+
+function disconnectSync() {
+  try { if (_sb && _channel) _sb.removeChannel(_channel); } catch {}
+  _sb = null; _household = null; _channel = null;
+}
+
+async function pullAll() {
+  if (!_sb) return null;
+  const { data, error } = await _sb.from("familienplaner_data").select("key,value").eq("household", _household);
+  if (error) throw error;
+  const out = {};
+  (data || []).forEach(row => { out[row.key] = row.value; });
+  return out;
+}
+
+async function pushOne(key, value) {
+  if (!_sb || !_household) return;
+  await _sb.from("familienplaner_data")
+    .upsert({ household: _household, key, value, updated_at: new Date().toISOString() }, { onConflict: "household,key" });
+}
+
+// save() schreibt immer lokal und – falls verbunden – in die Cloud
+const save = (key, val) => {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+  if (DATEN_KEYS.includes(key)) pushOne(key, val).catch(() => {});
+};
+
+// ─── Hilfsfunktionen ──────────────────────────────────────────────────────────
+function genId() { return Math.random().toString(36).slice(2, 9); }
+
+function getWeekDates(offset = 0) {
+  const now = new Date();
+  const day = now.getDay() || 7;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - day + 1 + offset * 7);
+  return WOCHENTAGE.map((_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
+  });
+}
+
+function scoreRezept(rezept, vorlieben, anwesend) {
+  let score = 0;
+  anwesend.forEach(person => {
+    const v = vorlieben[person] || { mag: [], magNicht: [] };
+    if (v.mag.some(m => rezept.tags?.includes(m) || rezept.kategorie?.includes(m))) score += 2;
+    if (v.magNicht.some(m => rezept.tags?.includes(m) || rezept.kategorie?.includes(m))) score -= 3;
+  });
+  return score;
+}
+
+// ─── Komponenten ──────────────────────────────────────────────────────────────
+
+function Navigation({ aktiv, setAktiv, syncStatus }) {
+  const tabs = [
+    { id: "wochenplan", label: "📅 Wochenplan" },
+    { id: "rezepte", label: "📖 Rezepte" },
+    { id: "vorlieben", label: "❤️ Vorlieben" },
+    { id: "kalender", label: "🗓️ Kalender" },
+    { id: "verlauf", label: "📊 Verlauf" },
+    { id: "sync", label: "🔄 Sync" },
+  ];
+  const statusDot = { offline: "⚪", connecting: "🟡", online: "🟢", error: "🔴" }[syncStatus] || "⚪";
+  return (
+    <nav style={{ background: "#1a1a2e", padding: "0 24px", display: "flex", gap: 4, overflowX: "auto" }}>
+      {tabs.map(t => (
+        <button key={t.id} onClick={() => setAktiv(t.id)} style={{
+          background: aktiv === t.id ? "#e8f4f8" : "transparent",
+          color: aktiv === t.id ? "#1a1a2e" : "#cbd5e1",
+          border: "none", padding: "14px 18px", cursor: "pointer",
+          fontFamily: "inherit", fontSize: 14, fontWeight: aktiv === t.id ? 700 : 400,
+          borderRadius: "8px 8px 0 0", whiteSpace: "nowrap", transition: "all .2s",
+          position: "relative",
+        }}>
+          {t.id === "sync" ? <>{statusDot} Sync</> : t.label}
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+function PersonTag({ person, size = "sm" }) {
+  const s = size === "sm" ? { fontSize: 12, padding: "2px 8px" } : { fontSize: 14, padding: "4px 12px" };
+  return (
+    <span style={{ background: FARBEN[person] + "33", color: FARBEN[person], border: `1px solid ${FARBEN[person]}66`, borderRadius: 999, fontWeight: 600, ...s }}>
+      {AVATARE[person]} {person}
+    </span>
+  );
+}
+
+// ── Wochenplan ────────────────────────────────────────────────────────────────
+
+function WochenplanView({ wochenplan, setWochenplan, rezepte, vorlieben, kalender, setKalender, verlauf, setVerlauf }) {
+  const [weekOffset, setWeekOffset] = useState(1);
+  const [generating, setGenerating] = useState(false);
+  const [editSlot, setEditSlot] = useState(null);
+  const [einkaufsliste, setEinkaufsliste] = useState(null);
+
+  const weekDates = getWeekDates(weekOffset);
+  const weekKey = weekDates[0];
+  const plan = wochenplan[weekKey] || {};
+
+  const anwesendAn = (tag, mahlzeit) => {
+    const datum = weekDates[WOCHENTAGE.indexOf(tag)];
+    return FAMILIE.filter(p => {
+      const abw = kalender[p] || [];
+      if (abw.includes(`${datum}|ganztags`)) return false;
+      if (mahlzeit && abw.includes(`${datum}|${mahlzeit}`)) return false;
+      return true;
+    });
+  };
+
+  const togglePersonAnwesenheit = (person, datum, mahlzeit) => {
+    const key = `${datum}|${mahlzeit}`;
+    const ganztagsKey = `${datum}|ganztags`;
+    const bisher = kalender[person] || [];
+    let updated;
+    if (bisher.includes(ganztagsKey)) {
+      // War ganztags abwesend -> jetzt für diese Mahlzeit wieder anwesend, Rest des Tages bleibt abwesend
+      updated = bisher.filter(k => k !== ganztagsKey);
+      MAHLZEITEN.forEach(m => { if (m !== mahlzeit) updated.push(`${datum}|${m}`); });
+    } else if (bisher.includes(key)) {
+      updated = bisher.filter(k => k !== key);
+    } else {
+      updated = [...bisher, key];
+    }
+    const n = { ...kalender, [person]: updated };
+    setKalender(n); save("kalender", n);
+  };
+
+  const generiereWochenplan = async () => {
+    setGenerating(true);
+    await new Promise(r => setTimeout(r, 900));
+    const alleRezepte = [...rezepte, ...ABENTEUER_REZEPTE];
+    const neuerPlan = {};
+    const genutzt = new Set();
+
+    WOCHENTAGE.forEach((tag, ti) => {
+      neuerPlan[tag] = {};
+      const ganzerTagLeer = anwesendAn(tag, null).length === 0;
+      if (ganzerTagLeer) { neuerPlan[tag]["Abendessen"] = null; return; }
+
+      MAHLZEITEN.forEach(m => {
+        const anwesend = anwesendAn(tag, m);
+        if (anwesend.length === 0) { neuerPlan[tag][m] = null; return; }
+
+        if (m === "Frühstück") {
+          const optionen = ["Müsli mit Früchten & Joghurt", "Toast mit Aufschnitt & Käse", "Joghurt mit Granola & Beeren", "Rührei & Toast", "Haferbrei mit Banane", "Brötchen mit Marmelade", "Pfannkuchen"];
+          neuerPlan[tag][m] = { name: optionen[ti % optionen.length], typ: "einfach" };
+          return;
+        }
+        if (m === "Brotbox") {
+          const brotboxOptionen = [
+            "Käsebrot & Apfel", "Laugenbrezel & Joghurt", "Sandwich mit Schinken", "Wraps mit Gemüse & Frischkäse",
+            "Brot mit Frischkäse & Gurke", "Mini-Croissant & Trauben", "Brot mit Hüttenkäse & Paprika",
+          ];
+          neuerPlan[tag][m] = { name: brotboxOptionen[ti % brotboxOptionen.length], typ: "brotbox" };
+          return;
+        }
+        if (m === "Mittagessen" && [0,1,2,3,4].includes(ti)) {
+          neuerPlan[tag][m] = { name: "Schulessen / Reste", typ: "info" };
+          return;
+        }
+        const verfügbar = alleRezepte.filter(r => !genutzt.has(r.id));
+        const bewertet = verfügbar.map(r => ({ r, score: scoreRezept(r, vorlieben, anwesend) + (Math.random() * 2 - 1) }));
+        bewertet.sort((a, b) => b.score - a.score);
+
+        // Gelegentlich Abenteuer einstreuen (ca. 20%)
+        let gewählt;
+        if (Math.random() < 0.2) {
+          const abent = ABENTEUER_REZEPTE.filter(r => !genutzt.has(r.id));
+          gewählt = abent[Math.floor(Math.random() * abent.length)] || bewertet[0]?.r;
+        } else {
+          gewählt = bewertet[0]?.r;
+        }
+
+        if (gewählt) {
+          genutzt.add(gewählt.id);
+          neuerPlan[tag][m] = { ...gewählt };
+        }
+      });
+    });
+
+    setWochenplan(prev => { const n = { ...prev, [weekKey]: neuerPlan }; save("wochenplan", n); return n; });
+    setGenerating(false);
+  };
+
+  const generiereEinkaufsliste = () => {
+    const zutatenMap = {};
+    Object.values(plan).forEach(tag => {
+      Object.values(tag).forEach(mahlzeit => {
+        if (mahlzeit?.zutaten) {
+          mahlzeit.zutaten.forEach(z => {
+            const key = z.trim();
+            if (!key) return;
+            zutatenMap[key] = (zutatenMap[key] || 0) + 1;
+          });
+        }
+      });
+    });
+    // Kategorisieren
+    const nachKategorie = {};
+    Object.entries(zutatenMap).forEach(([zutat, anzahl]) => {
+      const kat = kategorieVonZutat(zutat);
+      if (!nachKategorie[kat]) nachKategorie[kat] = [];
+      nachKategorie[kat].push({ zutat, anzahl, abgehakt: false, id: genId() });
+    });
+    setEinkaufsliste(nachKategorie);
+  };
+
+  const toggleAbhaken = (kat, id) => {
+    setEinkaufsliste(prev => ({
+      ...prev,
+      [kat]: prev[kat].map(item => item.id === id ? { ...item, abgehakt: !item.abgehakt } : item),
+    }));
+  };
+
+  const speichereWoche = () => {
+    const eintrag = { woche: weekKey, plan: plan, datum: new Date().toISOString() };
+    const neuer = [eintrag, ...(verlauf || []).filter(v => v.woche !== weekKey)].slice(0, 12);
+    setVerlauf(neuer);
+    save("verlauf", neuer);
+    alert("✅ Wochenplan gespeichert!");
+  };
+
+  return (
+    <div>
+      {/* Header-Leiste */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+        <button onClick={() => setWeekOffset(w => w - 1)} style={btnStyle("#334155")}>← Vorherige</button>
+        <h2 style={{ margin: 0, fontSize: 18, color: "#1e293b", flex: 1, textAlign: "center" }}>
+          KW ab {weekDates[0]} – {weekDates[6]}
+          {weekOffset === 1 ? " 📌 Aktuelle Planwoche" : ""}
+        </h2>
+        <button onClick={() => setWeekOffset(w => w + 1)} style={btnStyle("#334155")}>Nächste →</button>
+      </div>
+
+      <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
+        <button onClick={generiereWochenplan} disabled={generating} style={{ ...btnStyle("#6366f1"), fontSize: 15, padding: "10px 22px" }}>
+          {generating ? "⏳ Plane..." : "✨ Wochenplan generieren"}
+        </button>
+        {Object.keys(plan).length > 0 && <>
+          <button onClick={generiereEinkaufsliste} style={btnStyle("#059669")}>🛒 Einkaufsliste</button>
+          <button onClick={speichereWoche} style={btnStyle("#b45309")}>💾 Woche speichern</button>
+        </>}
+      </div>
+
+      {einkaufsliste && (
+        <EinkaufslistePanel
+          liste={einkaufsliste}
+          weekDates={weekDates}
+          onClose={() => setEinkaufsliste(null)}
+          onToggle={toggleAbhaken}
+        />
+      )}
+
+      {Object.keys(plan).length === 0 ? (
+        <div style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
+          <div style={{ fontSize: 64, marginBottom: 16 }}>🍽️</div>
+          <p style={{ fontSize: 18 }}>Noch kein Plan für diese Woche.</p>
+          <p>Klicke auf „Wochenplan generieren" um loszulegen!</p>
+        </div>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 6 }}>
+            <thead>
+              <tr>
+                <th style={{ width: 110, textAlign: "left", padding: "8px 12px", color: "#64748b", fontWeight: 600, fontSize: 13 }}></th>
+                {WOCHENTAGE.map((tag, i) => (
+                  <th key={tag} style={{ background: "#f8fafc", borderRadius: 8, padding: "8px 6px", textAlign: "center", minWidth: 140 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: "#1e293b" }}>{tag}</div>
+                    <div style={{ fontSize: 11, color: "#94a3b8" }}>{weekDates[i]}</div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {MAHLZEITEN.map(m => (
+                <tr key={m}>
+                  <td style={{
+                    padding: "8px 12px", fontWeight: 600, fontSize: 13, verticalAlign: "top",
+                    color: MAHLZEIT_META[m].textfarbe,
+                  }}>
+                    <div style={{ background: MAHLZEIT_META[m].farbe, borderRadius: 8, padding: "6px 10px", display: "inline-block" }}>
+                      {MAHLZEIT_META[m].emoji} {m}
+                    </div>
+                  </td>
+                  {WOCHENTAGE.map(tag => {
+                    const mahlzeit = plan[tag]?.[m];
+                    const anwesend = anwesendAn(tag, m);
+                    return (
+                      <td key={tag} style={{ verticalAlign: "top" }}>
+                        <MahlzeitKarte
+                          mahlzeit={mahlzeit}
+                          onClick={() => setEditSlot({ tag, m })}
+                          anwesend={anwesend}
+                          onTogglePerson={(person) => togglePersonAnwesenheit(person, weekDates[WOCHENTAGE.indexOf(tag)], m)}
+                        />
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {editSlot && (
+        <SlotEditor
+          slot={editSlot} plan={plan} rezepte={rezepte}
+          onSave={(neu) => {
+            const updated = { ...plan, [editSlot.tag]: { ...plan[editSlot.tag], [editSlot.m]: neu } };
+            setWochenplan(prev => { const n = { ...prev, [weekKey]: updated }; save("wochenplan", n); return n; });
+            setEditSlot(null);
+          }}
+          onClose={() => setEditSlot(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Einkaufsliste ─────────────────────────────────────────────────────────────
+
+function EinkaufslistePanel({ liste, weekDates, onClose, onToggle }) {
+  const katReihenfolge = Object.keys(SUPERMARKT_KATEGORIEN);
+  const alleKats = [...new Set([...katReihenfolge, ...Object.keys(liste)])];
+  const gefüllteKats = alleKats.filter(k => liste[k]?.length > 0);
+
+  const gesamtAnzahl = Object.values(liste).flat().length;
+  const abgehakt = Object.values(liste).flat().filter(i => i.abgehakt).length;
+
+  return (
+    <div style={{ background: "#fff", border: "2px solid #10b981", borderRadius: 16, padding: 0, marginBottom: 28, overflow: "hidden", boxShadow: "0 4px 24px #0591811a" }}>
+      {/* Header */}
+      <div style={{ background: "linear-gradient(135deg,#059669,#10b981)", padding: "16px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <h3 style={{ margin: 0, color: "#fff", fontSize: 18, fontWeight: 800 }}>🛒 Einkaufsliste</h3>
+          <div style={{ color: "#a7f3d0", fontSize: 13, marginTop: 2 }}>KW ab {weekDates[0]} · {abgehakt}/{gesamtAnzahl} erledigt</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {/* Fortschrittsbalken */}
+          <div style={{ width: 100, height: 8, background: "#a7f3d044", borderRadius: 99 }}>
+            <div style={{ width: `${gesamtAnzahl ? (abgehakt / gesamtAnzahl) * 100 : 0}%`, height: "100%", background: "#fff", borderRadius: 99, transition: "width .3s" }} />
+          </div>
+          <button onClick={onClose} style={{ background: "#ffffff33", border: "none", borderRadius: 8, color: "#fff", cursor: "pointer", fontSize: 18, padding: "4px 10px", fontWeight: 700 }}>✕</button>
+        </div>
+      </div>
+
+      {/* Kategorien */}
+      <div style={{ padding: "20px 24px", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 20 }}>
+        {gefüllteKats.map(kat => {
+          const items = liste[kat] || [];
+          const alleAbgehakt = items.every(i => i.abgehakt);
+          return (
+            <div key={kat} style={{ background: alleAbgehakt ? "#f0fdf4" : "#f8fafc", borderRadius: 12, border: `1px solid ${alleAbgehakt ? "#86efac" : "#e2e8f0"}`, overflow: "hidden", transition: "all .2s" }}>
+              {/* Kategorie-Header */}
+              <div style={{ padding: "10px 14px", background: alleAbgehakt ? "#dcfce7" : "#f1f5f9", borderBottom: `1px solid ${alleAbgehakt ? "#86efac" : "#e2e8f0"}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontWeight: 700, fontSize: 14, color: alleAbgehakt ? "#166534" : "#334155" }}>{kat}</span>
+                <span style={{ fontSize: 12, color: "#94a3b8", background: "#fff", borderRadius: 99, padding: "2px 8px" }}>
+                  {items.filter(i => i.abgehakt).length}/{items.length}
+                </span>
+              </div>
+              {/* Items */}
+              <div style={{ padding: "8px 4px" }}>
+                {items.map(item => (
+                  <label key={item.id} style={{
+                    display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", cursor: "pointer",
+                    borderRadius: 8, transition: "background .15s",
+                    textDecoration: item.abgehakt ? "line-through" : "none",
+                    color: item.abgehakt ? "#94a3b8" : "#1e293b",
+                  }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={item.abgehakt}
+                      onChange={() => onToggle(kat, item.id)}
+                      style={{ width: 16, height: 16, accentColor: "#059669", cursor: "pointer", flexShrink: 0 }}
+                    />
+                    <span style={{ fontSize: 14, flex: 1 }}>{item.zutat}</span>
+                    {item.anzahl > 1 && (
+                      <span style={{ fontSize: 12, fontWeight: 700, color: item.abgehakt ? "#cbd5e1" : "#059669", background: item.abgehakt ? "#f1f5f9" : "#dcfce7", borderRadius: 99, padding: "1px 7px", flexShrink: 0 }}>
+                        ×{item.anzahl}
+                      </span>
+                    )}
+                  </label>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footer */}
+      {abgehakt === gesamtAnzahl && gesamtAnzahl > 0 && (
+        <div style={{ background: "#f0fdf4", borderTop: "2px solid #86efac", padding: "14px 24px", textAlign: "center", color: "#166534", fontWeight: 700, fontSize: 16 }}>
+          🎉 Alles im Einkaufskorb! Viel Spaß beim Kochen!
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MahlzeitKarte({ mahlzeit, onClick, anwesend = [], onTogglePerson }) {
+  const PräsenzZeile = () => (
+    <div style={{ display: "flex", gap: 3, justifyContent: "center", marginBottom: 4 }} onClick={e => e.stopPropagation()}>
+      {FAMILIE.map(p => (
+        <span key={p}
+          title={anwesend.includes(p) ? `${p} isst mit – klicken zum Abmelden` : `${p} ist abwesend – klicken zum Anmelden`}
+          onClick={() => onTogglePerson?.(p)}
+          style={{
+            opacity: anwesend.includes(p) ? 1 : 0.2,
+            fontSize: 13, cursor: "pointer", transition: "opacity .15s",
+            filter: anwesend.includes(p) ? "none" : "grayscale(1)",
+          }}>
+          {AVATARE[p]}
+        </span>
+      ))}
+    </div>
+  );
+
+  if (!mahlzeit) return (
+    <div style={{ width: "100%", minHeight: 80, background: "#f8fafc", border: "2px dashed #e2e8f0", borderRadius: 10, padding: "6px 4px" }}>
+      <PräsenzZeile />
+      <button onClick={onClick} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", color: "#cbd5e1", fontSize: 20, padding: 0 }}>+</button>
+    </div>
+  );
+  const isAbenteuer = !!mahlzeit.abenteuer;
+  const isInfo = mahlzeit.typ === "info";
+  const isEinfach = mahlzeit.typ === "einfach";
+  const isBrotbox = mahlzeit.typ === "brotbox";
+  return (
+    <div onClick={onClick} style={{
+      background: isAbenteuer ? "linear-gradient(135deg,#7c3aed11,#ec489911)"
+        : isBrotbox ? "#eff6ff"
+        : isEinfach ? "#fffbeb"
+        : isInfo ? "#f1f5f9"
+        : "#fff",
+      border: isAbenteuer ? "2px solid #7c3aed44"
+        : isBrotbox ? "1px solid #bfdbfe"
+        : "1px solid #e2e8f0",
+      borderRadius: 10, padding: "8px 10px", cursor: "pointer", minHeight: 80,
+      transition: "box-shadow .15s",
+    }}
+      onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px #0001"}
+      onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}
+    >
+      <PräsenzZeile />
+      {isAbenteuer && <div style={{ fontSize: 10, fontWeight: 700, color: "#7c3aed", marginBottom: 2 }}>{mahlzeit.abenteuer}</div>}
+      <div style={{ fontWeight: 600, fontSize: 13, color: "#1e293b", lineHeight: 1.3 }}>{mahlzeit.name}</div>
+      {mahlzeit.dauer && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>⏱ {mahlzeit.dauer} Min</div>}
+      {mahlzeit.link && (
+        <a href={mahlzeit.link} target="_blank" rel="noreferrer"
+          onClick={e => e.stopPropagation()}
+          style={{ fontSize: 11, color: "#6366f1", textDecoration: "none", display: "block", marginTop: 2 }}>
+          🔗 Rezept
+        </a>
+      )}
+    </div>
+  );
+}
+
+function SlotEditor({ slot, plan, rezepte, onSave, onClose }) {
+  const [search, setSearch] = useState("");
+  const alleRezepte = [...rezepte, ...ABENTEUER_REZEPTE];
+  const gefiltert = alleRezepte.filter(r => r.name.toLowerCase().includes(search.toLowerCase()) || r.kategorie.toLowerCase().includes(search.toLowerCase()));
+  return (
+    <Modal title={`${slot.m} am ${slot.tag} bearbeiten`} onClose={onClose}>
+      <input placeholder="Rezept suchen…" value={search} onChange={e => setSearch(e.target.value)}
+        style={{ ...inputStyle, marginBottom: 16 }} autoFocus />
+      <div style={{ maxHeight: 400, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+        <div onClick={() => onSave(null)} style={{ ...rezeptZeileStyle, background: "#fef2f2" }}>
+          🗑️ Mahlzeit entfernen
+        </div>
+        {gefiltert.map(r => (
+          <div key={r.id} onClick={() => onSave(r)} style={rezeptZeileStyle}>
+            <div>
+              {r.abenteuer && <span style={{ fontSize: 11, color: "#7c3aed", fontWeight: 700 }}>{r.abenteuer} · </span>}
+              <strong>{r.name}</strong> <span style={{ color: "#94a3b8", fontSize: 12 }}>· {r.kategorie}</span>
+            </div>
+            {r.dauer && <span style={{ fontSize: 12, color: "#64748b" }}>⏱ {r.dauer} Min</span>}
+          </div>
+        ))}
+      </div>
+    </Modal>
+  );
+}
+
+// ── Rezepte ───────────────────────────────────────────────────────────────────
+
+function RezepteView({ rezepte, setRezepte }) {
+  const [neu, setNeu] = useState(false);
+  const [search, setSearch] = useState("");
+  const [form, setForm] = useState({ name: "", kategorie: "", dauer: "", link: "", zutaten: "", tags: "", beschreibung: "" });
+
+  const gefiltert = rezepte.filter(r =>
+    r.name.toLowerCase().includes(search.toLowerCase()) ||
+    r.kategorie.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const speichern = () => {
+    if (!form.name) return;
+    const r = { id: genId(), ...form, zutaten: form.zutaten.split(",").map(s => s.trim()).filter(Boolean), tags: form.tags.split(",").map(s => s.trim()).filter(Boolean), dauer: parseInt(form.dauer) || 0, bewertungen: {} };
+    const updated = [...rezepte, r];
+    setRezepte(updated); save("rezepte", updated);
+    setNeu(false); setForm({ name: "", kategorie: "", dauer: "", link: "", zutaten: "", tags: "", beschreibung: "" });
+  };
+
+  const löschen = (id) => {
+    const updated = rezepte.filter(r => r.id !== id);
+    setRezepte(updated); save("rezepte", updated);
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+        <input placeholder="🔍 Rezept suchen…" value={search} onChange={e => setSearch(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
+        <button onClick={() => setNeu(true)} style={btnStyle("#6366f1")}>+ Rezept hinzufügen</button>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <h3 style={{ color: "#7c3aed", margin: "0 0 12px" }}>✨ Abenteuer-Rezepte der App</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
+          {ABENTEUER_REZEPTE.map(r => <RezeptKarte key={r.id} r={r} readonly />)}
+        </div>
+      </div>
+
+      <h3 style={{ color: "#1e293b", margin: "24px 0 12px" }}>📖 Familien-Rezeptbuch ({gefiltert.length})</h3>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
+        {gefiltert.map(r => <RezeptKarte key={r.id} r={r} onDelete={() => löschen(r.id)} />)}
+        {gefiltert.length === 0 && <p style={{ color: "#94a3b8", gridColumn: "1/-1" }}>Keine Rezepte gefunden.</p>}
+      </div>
+
+      {neu && (
+        <Modal title="Neues Rezept hinzufügen" onClose={() => setNeu(false)}>
+          {[["name", "Rezeptname *"], ["kategorie", "Kategorie (z.B. Pasta, Suppe…)"], ["dauer", "Dauer in Minuten"], ["link", "Link zum Rezept (URL)"], ["zutaten", "Zutaten (kommagetrennt)"], ["tags", "Tags (kommagetrennt, z.B. Kinder mögen's, Gesund)"], ["beschreibung", "Kurzbeschreibung"]].map(([key, label]) => (
+            <div key={key} style={{ marginBottom: 12 }}>
+              <label style={{ display: "block", fontSize: 13, color: "#475569", marginBottom: 4 }}>{label}</label>
+              {key === "beschreibung"
+                ? <textarea value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} style={{ ...inputStyle, height: 64, resize: "vertical" }} />
+                : <input value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} style={inputStyle} />
+              }
+            </div>
+          ))}
+          <button onClick={speichern} style={{ ...btnStyle("#059669"), width: "100%" }}>✅ Rezept speichern</button>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function RezeptKarte({ r, onDelete, readonly }) {
+  const [offen, setOffen] = useState(false);
+  return (
+    <div style={{ background: r.abenteuer ? "linear-gradient(135deg,#faf5ff,#fdf2f8)" : "#fff", border: r.abenteuer ? "2px solid #c4b5fd" : "1px solid #e2e8f0", borderRadius: 12, padding: 16, position: "relative" }}>
+      {r.abenteuer && <div style={{ fontSize: 11, fontWeight: 700, color: "#7c3aed", marginBottom: 4 }}>{r.abenteuer}</div>}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 15, color: "#1e293b" }}>{r.name}</div>
+          <div style={{ fontSize: 12, color: "#94a3b8" }}>{r.kategorie} {r.dauer ? `· ⏱ ${r.dauer} Min` : ""}</div>
+        </div>
+        {!readonly && <button onClick={onDelete} style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626", fontSize: 16, padding: 0 }}>🗑️</button>}
+      </div>
+      {r.beschreibung && <p style={{ fontSize: 13, color: "#475569", margin: "8px 0 4px", lineHeight: 1.4 }}>{r.beschreibung}</p>}
+      <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 6 }}>
+        {r.tags?.map(t => <span key={t} style={{ background: "#f1f5f9", color: "#475569", borderRadius: 999, fontSize: 11, padding: "2px 8px" }}>{t}</span>)}
+      </div>
+      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+        {r.link && <a href={r.link} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#6366f1" }}>🔗 Rezept öffnen</a>}
+        <button onClick={() => setOffen(!offen)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "#94a3b8", padding: 0 }}>
+          {offen ? "▲ Weniger" : "▼ Zutaten"}
+        </button>
+      </div>
+      {offen && r.zutaten?.length > 0 && (
+        <div style={{ marginTop: 8, fontSize: 12, color: "#475569" }}>
+          {r.zutaten.join(" · ")}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Vorlieben ─────────────────────────────────────────────────────────────────
+
+function VorliebenView({ vorlieben, setVorlieben }) {
+  const [aktPerson, setAktPerson] = useState("Jette");
+  const [neuMag, setNeuMag] = useState("");
+  const [neuMagNicht, setNeuMagNicht] = useState("");
+  const v = vorlieben[aktPerson] || { mag: [], magNicht: [] };
+
+  const update = (fn) => {
+    const updated = { ...vorlieben, [aktPerson]: fn(v) };
+    setVorlieben(updated); save("vorlieben", updated);
+  };
+
+  const addMag = () => { if (!neuMag.trim()) return; update(v => ({ ...v, mag: [...new Set([...v.mag, neuMag.trim()])] })); setNeuMag(""); };
+  const removeMag = (item) => update(v => ({ ...v, mag: v.mag.filter(x => x !== item) }));
+  const addMagNicht = () => { if (!neuMagNicht.trim()) return; update(v => ({ ...v, magNicht: [...new Set([...v.magNicht, neuMagNicht.trim()])] })); setNeuMagNicht(""); };
+  const removeMagNicht = (item) => update(v => ({ ...v, magNicht: v.magNicht.filter(x => x !== item) }));
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 10, marginBottom: 28, flexWrap: "wrap" }}>
+        {FAMILIE.map(p => (
+          <button key={p} onClick={() => setAktPerson(p)} style={{
+            background: aktPerson === p ? FARBEN[p] : "#f1f5f9",
+            border: `2px solid ${aktPerson === p ? FARBEN[p] : "#e2e8f0"}`,
+            borderRadius: 12, padding: "10px 20px", cursor: "pointer",
+            fontWeight: aktPerson === p ? 700 : 400, fontSize: 16, transition: "all .2s",
+          }}>
+            {AVATARE[p]} {p}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+        <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 12, padding: 20 }}>
+          <h3 style={{ color: "#166534", margin: "0 0 14px" }}>💚 Mag ich</h3>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16, minHeight: 40 }}>
+            {v.mag.map(item => (
+              <span key={item} style={{ background: "#dcfce7", color: "#166534", borderRadius: 999, padding: "4px 12px", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
+                {item} <button onClick={() => removeMag(item)} style={{ background: "none", border: "none", cursor: "pointer", color: "#166534", padding: 0, fontSize: 14, lineHeight: 1 }}>×</button>
+              </span>
+            ))}
+            {v.mag.length === 0 && <span style={{ color: "#86efac", fontSize: 13 }}>Noch nichts eingetragen…</span>}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input value={neuMag} onChange={e => setNeuMag(e.target.value)} onKeyDown={e => e.key === "Enter" && addMag()} placeholder="z.B. Pasta, Pizza…" style={{ ...inputStyle, flex: 1 }} />
+            <button onClick={addMag} style={btnStyle("#16a34a")}>+ Hinzufügen</button>
+          </div>
+        </div>
+
+        <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: 20 }}>
+          <h3 style={{ color: "#991b1b", margin: "0 0 14px" }}>🚫 Mag ich nicht</h3>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16, minHeight: 40 }}>
+            {v.magNicht.map(item => (
+              <span key={item} style={{ background: "#fee2e2", color: "#991b1b", borderRadius: 999, padding: "4px 12px", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
+                {item} <button onClick={() => removeMagNicht(item)} style={{ background: "none", border: "none", cursor: "pointer", color: "#991b1b", padding: 0, fontSize: 14, lineHeight: 1 }}>×</button>
+              </span>
+            ))}
+            {v.magNicht.length === 0 && <span style={{ color: "#fca5a5", fontSize: 13 }}>Noch nichts eingetragen…</span>}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input value={neuMagNicht} onChange={e => setNeuMagNicht(e.target.value)} onKeyDown={e => e.key === "Enter" && addMagNicht()} placeholder="z.B. Fisch, Scharf…" style={{ ...inputStyle, flex: 1 }} />
+            <button onClick={addMagNicht} style={btnStyle("#dc2626")}>+ Hinzufügen</button>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 24, background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 12, padding: 20 }}>
+        <h3 style={{ margin: "0 0 12px", color: "#1d4ed8" }}>📊 Übersicht aller Vorlieben</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
+          {FAMILIE.map(p => {
+            const pv = vorlieben[p] || { mag: [], magNicht: [] };
+            return (
+              <div key={p} style={{ background: "#fff", borderRadius: 8, padding: 12, border: `2px solid ${FARBEN[p]}44` }}>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>{AVATARE[p]} {p}</div>
+                <div style={{ fontSize: 12, color: "#16a34a" }}>💚 {pv.mag.join(", ") || "–"}</div>
+                <div style={{ fontSize: 12, color: "#dc2626", marginTop: 4 }}>🚫 {pv.magNicht.join(", ") || "–"}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Kalender ──────────────────────────────────────────────────────────────────
+
+function KalenderView({ kalender, setKalender }) {
+  const [aktPerson, setAktPerson] = useState("Jette");
+  const [weekOffset, setWeekOffset] = useState(0);
+  const weekDates = getWeekDates(weekOffset);
+  const abwesenheiten = kalender[aktPerson] || [];
+
+  const istAbwesend = (datum, mahlzeit) =>
+    abwesenheiten.includes(`${datum}|ganztags`) || abwesenheiten.includes(`${datum}|${mahlzeit}`);
+
+  const toggleMahlzeit = (datum, mahlzeit) => {
+    const ganztagsKey = `${datum}|ganztags`;
+    const key = `${datum}|${mahlzeit}`;
+    let updated;
+    if (abwesenheiten.includes(ganztagsKey)) {
+      // Ganztags abwesend -> auflösen in Einzelmahlzeiten, außer der angeklickten
+      updated = abwesenheiten.filter(k => k !== ganztagsKey);
+      MAHLZEITEN.forEach(m => { if (m !== mahlzeit) updated.push(`${datum}|${m}`); });
+    } else if (abwesenheiten.includes(key)) {
+      updated = abwesenheiten.filter(k => k !== key);
+    } else {
+      updated = [...abwesenheiten, key];
+    }
+    const n = { ...kalender, [aktPerson]: updated };
+    setKalender(n); save("kalender", n);
+  };
+
+  const toggleGanzerTag = (datum) => {
+    const ganztagsKey = `${datum}|ganztags`;
+    let updated;
+    if (abwesenheiten.includes(ganztagsKey)) {
+      // Ganztags-Abwesenheit aufheben (inkl. eventueller Einzelmahlzeiten an dem Tag)
+      updated = abwesenheiten.filter(k => !k.startsWith(`${datum}|`));
+    } else {
+      // Alles für diesen Tag entfernen und durch "ganztags" ersetzen
+      updated = [...abwesenheiten.filter(k => !k.startsWith(`${datum}|`)), ganztagsKey];
+    }
+    const n = { ...kalender, [aktPerson]: updated };
+    setKalender(n); save("kalender", n);
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 10, marginBottom: 24, flexWrap: "wrap" }}>
+        {FAMILIE.map(p => (
+          <button key={p} onClick={() => setAktPerson(p)} style={{
+            background: aktPerson === p ? FARBEN[p] : "#f1f5f9",
+            border: `2px solid ${aktPerson === p ? FARBEN[p] : "#e2e8f0"}`,
+            borderRadius: 12, padding: "10px 20px", cursor: "pointer", fontWeight: aktPerson === p ? 700 : 400, fontSize: 16,
+          }}>
+            {AVATARE[p]} {p}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+        <button onClick={() => setWeekOffset(w => w - 1)} style={btnStyle("#334155")}>← Vorherige Woche</button>
+        <span style={{ fontWeight: 600, color: "#1e293b" }}>{weekDates[0]} – {weekDates[6]}</span>
+        <button onClick={() => setWeekOffset(w => w + 1)} style={btnStyle("#334155")}>Nächste Woche →</button>
+      </div>
+      <p style={{ fontSize: 13, color: "#94a3b8", margin: "0 0 16px" }}>
+        Klick auf eine Mahlzeit = nur diese Mahlzeit abmelden (z.B. Mittagessen wegen Schule). Klick auf den Tagesnamen = ganzer Tag abwesend.
+      </p>
+
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 6 }}>
+          <thead>
+            <tr>
+              <th style={{ width: 90 }}></th>
+              {WOCHENTAGE.map((tag, i) => {
+                const datum = weekDates[i];
+                const ganztags = abwesenheiten.includes(`${datum}|ganztags`);
+                return (
+                  <th key={tag} onClick={() => toggleGanzerTag(datum)} style={{
+                    background: ganztags ? "#fee2e2" : "#f8fafc",
+                    border: `2px solid ${ganztags ? "#fca5a5" : "transparent"}`,
+                    borderRadius: 8, padding: "8px 6px", textAlign: "center", minWidth: 100, cursor: "pointer",
+                  }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: "#1e293b" }}>{tag.slice(0, 2)}</div>
+                    <div style={{ fontSize: 11, color: "#94a3b8" }}>{datum}</div>
+                    {ganztags && <div style={{ fontSize: 10, color: "#dc2626", fontWeight: 700, marginTop: 2 }}>Ganzer Tag</div>}
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {MAHLZEITEN.map(m => (
+              <tr key={m}>
+                <td style={{ padding: "6px 10px", fontWeight: 600, fontSize: 13, color: MAHLZEIT_META[m].textfarbe, whiteSpace: "nowrap" }}>
+                  <div style={{ background: MAHLZEIT_META[m].farbe, borderRadius: 8, padding: "5px 8px", display: "inline-block" }}>
+                    {MAHLZEIT_META[m].emoji} {m}
+                  </div>
+                </td>
+                {WOCHENTAGE.map((tag, i) => {
+                  const datum = weekDates[i];
+                  const ganztags = abwesenheiten.includes(`${datum}|ganztags`);
+                  const abw = istAbwesend(datum, m);
+                  return (
+                    <td key={tag} style={{ textAlign: "center" }}>
+                      <div onClick={() => !ganztags && toggleMahlzeit(datum, m)} style={{
+                        background: ganztags ? "#fef2f2" : abw ? "#fef2f2" : "#f0fdf4",
+                        border: `2px solid ${abw ? "#fca5a5" : "#86efac"}`,
+                        borderRadius: 8, padding: "10px 4px", cursor: ganztags ? "default" : "pointer",
+                        opacity: ganztags ? 0.5 : 1, transition: "all .2s",
+                      }}>
+                        <div style={{ fontSize: 18 }}>{abw ? "🔴" : "🟢"}</div>
+                      </div>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ background: "#f8fafc", borderRadius: 12, padding: 20, marginTop: 24 }}>
+        <h3 style={{ margin: "0 0 16px", color: "#1e293b" }}>📋 Familienübersicht – diese Woche</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
+          {FAMILIE.map(p => {
+            const pAbw = kalender[p] || [];
+            const einträge = [];
+            weekDates.forEach((datum, i) => {
+              const tag = WOCHENTAGE[i].slice(0, 2);
+              if (pAbw.includes(`${datum}|ganztags`)) { einträge.push(`${tag} (ganzer Tag)`); return; }
+              MAHLZEITEN.forEach(m => { if (pAbw.includes(`${datum}|${m}`)) einträge.push(`${tag} ${MAHLZEIT_META[m].emoji}`); });
+            });
+            return (
+              <div key={p} style={{ background: "#fff", borderRadius: 8, padding: 12, border: `2px solid ${FARBEN[p]}44` }}>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>{AVATARE[p]} {p}</div>
+                {einträge.length === 0
+                  ? <div style={{ fontSize: 12, color: "#16a34a" }}>✅ Immer da!</div>
+                  : <div style={{ fontSize: 12, color: "#dc2626" }}>🔴 Abwesend: {einträge.join(", ")}</div>
+                }
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Verlauf ───────────────────────────────────────────────────────────────────
+
+function VerlaufView({ verlauf, vorlieben }) {
+  const [detail, setDetail] = useState(null);
+  if (!verlauf || verlauf.length === 0) {
+    return (
+      <div style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
+        <div style={{ fontSize: 64, marginBottom: 16 }}>📊</div>
+        <p>Noch keine gespeicherten Wochen.</p>
+        <p>Erstelle einen Wochenplan und speichere ihn, um die Lernkurve zu sehen!</p>
+      </div>
+    );
+  }
+
+  // Häufigkeitsanalyse
+  const rezeptHäufigkeit = {};
+  const kategorieHäufigkeit = {};
+  verlauf.forEach(w => {
+    Object.values(w.plan || {}).forEach(tag => {
+      Object.values(tag || {}).forEach(m => {
+        if (m?.name && m.name.length > 3) {
+          rezeptHäufigkeit[m.name] = (rezeptHäufigkeit[m.name] || 0) + 1;
+          if (m.kategorie) kategorieHäufigkeit[m.kategorie] = (kategorieHäufigkeit[m.kategorie] || 0) + 1;
+        }
+      });
+    });
+  });
+  const topRezepte = Object.entries(rezeptHäufigkeit).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const topKategorien = Object.entries(kategorieHäufigkeit).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  return (
+    <div>
+      <h2 style={{ color: "#1e293b", marginTop: 0 }}>📊 Was die Familie liebt</h2>
+      <p style={{ color: "#64748b" }}>Basierend auf {verlauf.length} gespeicherten Wochen</p>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24 }}>
+        <div style={{ background: "#eff6ff", borderRadius: 12, padding: 20 }}>
+          <h3 style={{ color: "#1d4ed8", margin: "0 0 14px" }}>🏆 Häufigste Gerichte</h3>
+          {topRezepte.map(([name, n]) => (
+            <div key={name} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #bfdbfe", fontSize: 14 }}>
+              <span>{name}</span>
+              <span style={{ fontWeight: 700, color: "#1d4ed8" }}>×{n}</span>
+            </div>
+          ))}
+          {topRezepte.length === 0 && <p style={{ color: "#93c5fd" }}>Noch keine Daten.</p>}
+        </div>
+
+        <div style={{ background: "#f0fdf4", borderRadius: 12, padding: 20 }}>
+          <h3 style={{ color: "#166534", margin: "0 0 14px" }}>🍽️ Beliebteste Kategorien</h3>
+          {topKategorien.map(([kat, n]) => (
+            <div key={kat} style={{ display: "flex", gap: 8, padding: "6px 0", borderBottom: "1px solid #bbf7d0", fontSize: 14, alignItems: "center" }}>
+              <div style={{ flex: 1 }}>{kat}</div>
+              <div style={{ background: "#dcfce7", height: 12, borderRadius: 6, width: `${Math.min(n * 30, 100)}px` }} />
+              <span style={{ fontWeight: 700, color: "#166534", minWidth: 24 }}>×{n}</span>
+            </div>
+          ))}
+          {topKategorien.length === 0 && <p style={{ color: "#86efac" }}>Noch keine Daten.</p>}
+        </div>
+      </div>
+
+      <h3 style={{ color: "#1e293b" }}>🗓️ Gespeicherte Wochen</h3>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {verlauf.map((w, i) => (
+          <div key={i} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
+            onClick={() => setDetail(detail === i ? null : i)}>
+            <div>
+              <div style={{ fontWeight: 700 }}>Woche ab {w.woche}</div>
+              <div style={{ fontSize: 12, color: "#94a3b8" }}>Gespeichert {new Date(w.datum).toLocaleDateString("de-DE")}</div>
+            </div>
+            <span style={{ color: "#6366f1" }}>{detail === i ? "▲" : "▼"}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Sync ──────────────────────────────────────────────────────────────────────
+
+function SyncView({ config, setConfig, status }) {
+  const [url, setUrl] = useState(config?.url || "");
+  const [key, setKey] = useState(config?.key || "");
+  const [household, setHousehold] = useState(config?.household || "");
+  const [showGuide, setShowGuide] = useState(!config);
+
+  const verbinden = () => {
+    if (!url.trim() || !key.trim() || !household.trim()) {
+      alert("Bitte alle drei Felder ausfüllen.");
+      return;
+    }
+    const c = { url: url.trim().replace(/\/$/, ""), key: key.trim(), household: household.trim().toLowerCase() };
+    setConfig(c);
+  };
+  const trennen = () => {
+    if (confirm("Synchronisation trennen? Deine Daten bleiben lokal auf diesem Gerät erhalten.")) {
+      setConfig(null);
+    }
+  };
+
+  const statusInfo = {
+    offline:    { farbe: "#64748b", bg: "#f1f5f9", text: "Nicht verbunden – Daten nur auf diesem Gerät" },
+    connecting: { farbe: "#b45309", bg: "#fef3c7", text: "Verbinde mit der Cloud…" },
+    online:     { farbe: "#166534", bg: "#dcfce7", text: "✓ Synchronisiert – alle Geräte sind verbunden" },
+    error:      { farbe: "#991b1b", bg: "#fee2e2", text: "Verbindung fehlgeschlagen – bitte Zugangsdaten prüfen" },
+  }[status] || {};
+
+  const sqlCode = `create table if not exists familienplaner_data (
+  household text not null,
+  key text not null,
+  value jsonb,
+  updated_at timestamptz default now(),
+  primary key (household, key)
+);
+alter table familienplaner_data enable row level security;
+create policy "Familienzugriff" on familienplaner_data
+  for all using (true) with check (true);
+alter publication supabase_realtime add table familienplaner_data;`;
+
+  return (
+    <div style={{ maxWidth: 760 }}>
+      <h2 style={{ color: "#1e293b", marginTop: 0 }}>🔄 Geräte-Synchronisation</h2>
+
+      {/* Status-Banner */}
+      <div style={{ background: statusInfo.bg, color: statusInfo.farbe, borderRadius: 12, padding: "14px 18px", fontWeight: 600, marginBottom: 24, display: "flex", alignItems: "center", gap: 10 }}>
+        <span style={{ fontSize: 18 }}>{{ offline: "⚪", connecting: "🟡", online: "🟢", error: "🔴" }[status] || "⚪"}</span>
+        {statusInfo.text}
+      </div>
+
+      {/* Verbindungsformular */}
+      <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 24, marginBottom: 20 }}>
+        <h3 style={{ margin: "0 0 4px", color: "#1e293b" }}>Verbindung einrichten</h3>
+        <p style={{ margin: "0 0 18px", fontSize: 14, color: "#64748b" }}>
+          Trage auf <strong>jedem Gerät</strong> dieselben Werte ein. Der Haushalts-Code verbindet eure Geräte miteinander.
+        </p>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>1. Supabase Projekt-URL</label>
+          <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://xxxxx.supabase.co" style={inputStyle} />
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>2. Supabase anon-Schlüssel (public)</label>
+          <input value={key} onChange={e => setKey(e.target.value)} placeholder="eyJhbGci…" style={inputStyle} />
+        </div>
+        <div style={{ marginBottom: 18 }}>
+          <label style={labelStyle}>3. Haushalts-Code (frei wählbar, für alle gleich)</label>
+          <input value={household} onChange={e => setHousehold(e.target.value)} placeholder="z.B. familie-meier-2026" style={inputStyle} />
+        </div>
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={verbinden} style={{ ...btnStyle("#059669"), fontSize: 15, padding: "10px 22px" }}>
+            {status === "online" ? "🔄 Verbindung aktualisieren" : "🔗 Verbinden"}
+          </button>
+          {config && <button onClick={trennen} style={btnStyle("#dc2626")}>Trennen</button>}
+        </div>
+      </div>
+
+      {/* Anleitung */}
+      <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 12, overflow: "hidden" }}>
+        <button onClick={() => setShowGuide(!showGuide)} style={{ width: "100%", background: "none", border: "none", padding: "16px 20px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily: "inherit" }}>
+          <span style={{ fontWeight: 700, fontSize: 15, color: "#1e293b" }}>📖 Schritt-für-Schritt Einrichtung (einmalig, ~15 Min)</span>
+          <span style={{ color: "#6366f1" }}>{showGuide ? "▲" : "▼"}</span>
+        </button>
+        {showGuide && (
+          <div style={{ padding: "0 20px 20px", fontSize: 14, color: "#334155", lineHeight: 1.6 }}>
+            <ol style={{ paddingLeft: 20, margin: 0 }}>
+              <li style={{ marginBottom: 10 }}>
+                Gehe auf <a href="https://supabase.com" target="_blank" rel="noreferrer" style={linkStyle}>supabase.com</a> und erstelle ein <strong>kostenloses Konto</strong>.
+              </li>
+              <li style={{ marginBottom: 10 }}>
+                Klicke auf <strong>„New Project"</strong>, vergib einen Namen (z.B. „Familienplaner") und ein Datenbank-Passwort. Warte ~2 Min, bis das Projekt bereit ist.
+              </li>
+              <li style={{ marginBottom: 10 }}>
+                Öffne links den <strong>„SQL Editor"</strong>, füge den folgenden Code ein und klicke <strong>„Run"</strong>:
+                <div style={{ position: "relative", marginTop: 8 }}>
+                  <pre style={{ background: "#1e293b", color: "#e2e8f0", padding: "14px 16px", borderRadius: 8, fontSize: 12, overflowX: "auto", margin: 0 }}>{sqlCode}</pre>
+                  <button onClick={() => { navigator.clipboard?.writeText(sqlCode); }} style={{ position: "absolute", top: 8, right: 8, ...btnStyle("#475569"), padding: "4px 10px", fontSize: 11 }}>📋 Kopieren</button>
+                </div>
+              </li>
+              <li style={{ marginBottom: 10 }}>
+                Öffne links <strong>„Project Settings" → „API"</strong>. Kopiere von dort:
+                <ul style={{ marginTop: 6 }}>
+                  <li><strong>Project URL</strong> → oben in Feld 1 einfügen</li>
+                  <li><strong>anon public</strong> Key → oben in Feld 2 einfügen</li>
+                </ul>
+              </li>
+              <li style={{ marginBottom: 10 }}>
+                Denk dir einen <strong>Haushalts-Code</strong> aus (Feld 3) – etwas Eindeutiges, das nicht zu erraten ist. Alle vier Geräte nutzen denselben Code.
+              </li>
+              <li>
+                Klicke <strong>„Verbinden"</strong>. Fertig! 🎉 Auf den anderen Geräten gibst du dieselbe URL, denselben Schlüssel und denselben Code ein.
+              </li>
+            </ol>
+            <div style={{ marginTop: 16, background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: "#92400e" }}>
+              💡 <strong>Hinweis zur Sicherheit:</strong> Der Haushalts-Code wirkt wie ein gemeinsames Passwort. Wähle etwas, das nur eure Familie kennt – dann sieht niemand anderes eure Pläne.
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Modal & Utilities ─────────────────────────────────────────────────────────
+
+function Modal({ title, onClose, children }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "#0007", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{ background: "#fff", borderRadius: 16, padding: 28, width: "100%", maxWidth: 560, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px #0003" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <h3 style={{ margin: 0, fontSize: 18, color: "#1e293b" }}>{title}</h3>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22, color: "#94a3b8", padding: 4, lineHeight: 1 }}>×</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+const btnStyle = (bg) => ({
+  background: bg, color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px",
+  cursor: "pointer", fontSize: 13, fontWeight: 600, transition: "opacity .2s", fontFamily: "inherit",
+});
+const inputStyle = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 12px", fontSize: 14, fontFamily: "inherit", boxSizing: "border-box", outline: "none" };
+const labelStyle = { display: "block", fontSize: 13, fontWeight: 600, color: "#475569", marginBottom: 5 };
+const linkStyle = { color: "#6366f1", fontWeight: 600 };
+const rezeptZeileStyle = { background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "10px 14px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 14 };
+
+// ─── Haupt-App ────────────────────────────────────────────────────────────────
+
+function App() {
+  const [tab, setTab] = useState("wochenplan");
+  const [rezepte, setRezepte] = useState(() => load("rezepte", STARTER_REZEPTE));
+  const [vorlieben, setVorlieben] = useState(() => load("vorlieben", DEFAULT_VORLIEBEN));
+  const [kalender, setKalender] = useState(() => load("kalender", {}));
+  const [wochenplan, setWochenplan] = useState(() => load("wochenplan", {}));
+  const [verlauf, setVerlauf] = useState(() => load("verlauf", []));
+
+  // Sync-State
+  const [syncConfig, setSyncConfigRaw] = useState(() => load("sync_config", null));
+  const [syncStatus, setSyncStatus] = useState("offline");
+
+  const setSyncConfig = useCallback((cfg) => {
+    if (cfg) { try { localStorage.setItem("sync_config", JSON.stringify(cfg)); } catch {} }
+    else { try { localStorage.removeItem("sync_config"); } catch {} }
+    setSyncConfigRaw(cfg);
+  }, []);
+
+  // Eingehende Remote-Änderungen auf den State anwenden (ohne erneutes Pushen)
+  const applyRemote = useCallback((key, value) => {
+    const setterMap = { rezepte: setRezepte, vorlieben: setVorlieben, kalender: setKalender, wochenplan: setWochenplan, verlauf: setVerlauf };
+    const setter = setterMap[key];
+    if (setter) {
+      setter(value);
+      try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+    }
+  }, []);
+
+  // Verbinden, wenn Config vorhanden
+  useEffect(() => {
+    if (!syncConfig?.url || !syncConfig?.key || !syncConfig?.household) {
+      disconnectSync();
+      setSyncStatus("offline");
+      return;
+    }
+    let aktiv = true;
+    setSyncStatus("connecting");
+    const aktuelleDaten = { rezepte, vorlieben, kalender, wochenplan, verlauf };
+
+    connectSync(syncConfig, applyRemote)
+      .then(async () => {
+        if (!aktiv) return;
+        const remote = await pullAll();
+        for (const k of DATEN_KEYS) {
+          if (remote && remote[k] !== undefined && remote[k] !== null) {
+            applyRemote(k, remote[k]);          // Cloud-Daten übernehmen
+          } else {
+            await pushOne(k, aktuelleDaten[k]);  // lokale Daten in die Cloud hochladen
+          }
+        }
+        if (aktiv) setSyncStatus("online");
+      })
+      .catch(() => { if (aktiv) setSyncStatus("error"); });
+
+    return () => { aktiv = false; disconnectSync(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [syncConfig]);
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#e8f4f8", fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
+      {/* Header */}
+      <div style={{ background: "#1a1a2e" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "20px 24px 0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
+            <div style={{ fontSize: 36 }}>🍽️</div>
+            <div style={{ flex: 1 }}>
+              <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#f1f5f9", letterSpacing: -0.5 }}>Familienplaner</h1>
+              <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 1 }}>
+                {FAMILIE.map(p => <span key={p} style={{ marginRight: 8 }}>{AVATARE[p]} {p}</span>)}
+              </div>
+            </div>
+            <button onClick={() => setTab("sync")} title="Sync-Status" style={{
+              background: { offline: "#33415588", connecting: "#b4530988", online: "#16653488", error: "#991b1b88" }[syncStatus],
+              border: "none", borderRadius: 99, padding: "6px 14px", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
+            }}>
+              {{ offline: "⚪ Lokal", connecting: "🟡 Verbinde…", online: "🟢 Synchron", error: "🔴 Fehler" }[syncStatus]}
+            </button>
+          </div>
+          <Navigation aktiv={tab} setAktiv={setTab} syncStatus={syncStatus} />
+        </div>
+      </div>
+
+      {/* Content */}
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "28px 24px" }}>
+        {tab === "wochenplan" && <WochenplanView wochenplan={wochenplan} setWochenplan={setWochenplan} rezepte={rezepte} vorlieben={vorlieben} kalender={kalender} setKalender={setKalender} verlauf={verlauf} setVerlauf={setVerlauf} />}
+        {tab === "rezepte" && <RezepteView rezepte={rezepte} setRezepte={setRezepte} />}
+        {tab === "vorlieben" && <VorliebenView vorlieben={vorlieben} setVorlieben={setVorlieben} />}
+        {tab === "kalender" && <KalenderView kalender={kalender} setKalender={setKalender} />}
+        {tab === "verlauf" && <VerlaufView verlauf={verlauf} vorlieben={vorlieben} />}
+        {tab === "sync" && <SyncView config={syncConfig} setConfig={setSyncConfig} status={syncStatus} />}
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>
