@@ -186,6 +186,23 @@ let _channel = null;       // Realtime-Channel
 let _libPromise = null;    // Lade-Promise der Bibliothek
 const DATEN_KEYS = ["rezepte", "vorlieben", "kalender", "wochenplan", "verlauf"];
 
+// Migriert Rezepte mit altem/unvollständigem Zutaten-Format (Strings oder Objekte ohne Einheit/Menge)
+// in das aktuelle Objekt-Format mit Mengen & Einheiten. Wird überall angewendet, wo Rezepte gesetzt werden
+// (initial, lokal geladen UND aus der Cloud), damit alte Cloud-Daten die App nicht mehr verfälschen.
+function migriereRezepte(liste) {
+  if (!Array.isArray(liste)) return liste;
+  const aktuelleById = {};
+  [...STARTER_REZEPTE, ...ABENTEUER_REZEPTE].forEach(r => { aktuelleById[r.id] = r; });
+  return liste.map(r => {
+    if (!r || !Array.isArray(r.zutaten)) return r;
+    const hatAlteZutaten = r.zutaten.some(z => typeof z === "string" || !z?.einheit || z?.menge == null);
+    if (!hatAlteZutaten) return r;
+    if (aktuelleById[r.id]) return { ...r, zutaten: aktuelleById[r.id].zutaten };
+    return { ...r, zutaten: r.zutaten.map(z => (typeof z === "string") ? { name: z, menge: 1, einheit: "Portion" } : { name: z.name, menge: z.menge ?? 1, einheit: z.einheit || "Portion" }) };
+  });
+}
+
+
 // Feste Supabase-Zugangsdaten (öffentlicher anon-Key, Sicherheit kommt über Row-Level-Security + Familien-Code)
 const SUPABASE_URL = "https://qaunugzebrdopraopxff.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhdW51Z3plYnJkb3ByYW9weGZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzNzU3MDcsImV4cCI6MjA5Njk1MTcwN30.wHWVsn6SanXPV11FeaDMS_SAs6dLEBXT6ol3iQ16yf0";
@@ -415,20 +432,27 @@ function WochenplanView({ wochenplan, setWochenplan, rezepte, vorlieben, kalende
   const generiereEinkaufsliste = () => {
     const aktuelleById = {};
     const aktuelleByName = {};
+    const zutatReferenz = {}; // Zutatname (lowercase) -> { einheit, menge } aus aktuellen Rezepten
     [...rezepte, ...ABENTEUER_REZEPTE].forEach(r => {
       aktuelleById[r.id] = r;
       aktuelleByName[r.name.toLowerCase()] = r;
+      (r.zutaten || []).forEach(z => {
+        if (z && typeof z === "object" && z.name && z.einheit && !zutatReferenz[z.name.toLowerCase()]) {
+          zutatReferenz[z.name.toLowerCase()] = { einheit: z.einheit, menge: z.menge ?? 1 };
+        }
+      });
     });
 
     const zutatenMap = {}; // key: "name|einheit" -> { name, einheit, menge }
     Object.entries(plan).forEach(([tag, mahlzeitenDesTages]) => {
       Object.entries(mahlzeitenDesTages).forEach(([m, mahlzeit]) => {
         let zutatenListe = mahlzeit?.zutaten;
-        // Falls im Plan noch alte String-Zutaten gespeichert sind, aktuelle Zutaten des Rezepts (mit Mengen) verwenden
-        if (zutatenListe?.some(z => typeof z === "string")) {
-          const passendesRezept = (mahlzeit?.id && aktuelleById[mahlzeit.id])
-            || (mahlzeit?.name && aktuelleByName[mahlzeit.name.toLowerCase()]);
-          if (passendesRezept) zutatenListe = passendesRezept.zutaten;
+        // Immer die aktuellen Rezept-Zutaten bevorzugen, wenn die Mahlzeit einem bekannten Rezept entspricht
+        // (per ID oder Name). So sind Mengen/Einheiten garantiert aktuell, auch bei alten gespeicherten Plänen.
+        const passendesRezept = (mahlzeit?.id && aktuelleById[mahlzeit.id])
+          || (mahlzeit?.name && aktuelleByName[mahlzeit.name.toLowerCase()]);
+        if (passendesRezept) {
+          zutatenListe = passendesRezept.zutaten;
         }
         if (zutatenListe) {
           // Rezept-Mengen sind für 4 Personen kalkuliert -> auf tatsächliche Anwesenheit skalieren
@@ -437,9 +461,14 @@ function WochenplanView({ wochenplan, setWochenplan, rezepte, vorlieben, kalende
           if (faktor <= 0) return;
           zutatenListe.forEach(z => {
             const name = (typeof z === "string") ? z.trim() : (z.name || "").trim();
-            const einheit = (typeof z === "string") ? "Portion" : (z.einheit || "Portion");
-            const basisMenge = (typeof z === "string") ? 1 : (z.menge || 0);
             if (!name) return;
+            // Einheit/Menge bestimmen; fehlt die Einheit, aus der Zutaten-Referenz der aktuellen Rezepte ergänzen
+            const ref = zutatReferenz[name.toLowerCase()];
+            let einheit = (typeof z === "string") ? null : z.einheit;
+            let basisMenge = (typeof z === "string") ? null : z.menge;
+            if (!einheit && ref) { einheit = ref.einheit; if (basisMenge == null) basisMenge = ref.menge; }
+            einheit = einheit || "Portion";
+            basisMenge = (basisMenge == null) ? 1 : basisMenge;
             const key = `${name}|${einheit}`;
             if (!zutatenMap[key]) zutatenMap[key] = { name, einheit, menge: 0 };
             zutatenMap[key].menge += basisMenge * faktor;
@@ -1181,8 +1210,28 @@ function VerlaufView({ verlauf, vorlieben }) {
 
 // ── Sync ──────────────────────────────────────────────────────────────────────
 
-function SyncView({ config, setConfig, status }) {
+function SyncView({ config, setConfig, status, alleDaten }) {
   const [code, setCode] = useState(config?.household || "");
+  const [cloudBusy, setCloudBusy] = useState(false);
+
+  const cloudUeberschreiben = async () => {
+    if (status !== "online") {
+      alert("Bitte zuerst mit einem Familien-Code verbinden, dann kannst du die Cloud überschreiben.");
+      return;
+    }
+    if (!confirm("Die Cloud-Daten werden mit den Daten dieses Geräts ÜBERSCHRIEBEN. Daten auf anderen Geräten, die noch nicht synchronisiert wurden, gehen dabei verloren. Fortfahren?")) return;
+    setCloudBusy(true);
+    try {
+      for (const k of DATEN_KEYS) {
+        await pushOne(k, alleDaten[k]);
+      }
+      alert("✓ Cloud erfolgreich mit den lokalen Daten überschrieben. Andere Geräte übernehmen die Daten beim nächsten Verbinden.");
+    } catch (e) {
+      alert("Fehler beim Überschreiben der Cloud. Bitte Verbindung prüfen und erneut versuchen.");
+    } finally {
+      setCloudBusy(false);
+    }
+  };
 
   const verbinden = () => {
     if (!code.trim()) {
@@ -1238,6 +1287,40 @@ function SyncView({ config, setConfig, status }) {
         💡 <strong>Hinweis zur Sicherheit:</strong> Der Familien-Code wirkt wie ein gemeinsames Passwort. Wähle etwas, das nur eure Familie kennt – dann sieht niemand anderes eure Pläne.
         Auf neuen Geräten einfach denselben Code hier eingeben, dann werden eure Pläne automatisch geladen.
       </div>
+
+      {/* Cloud mit lokalen Daten überschreiben */}
+      <div style={{ background: "#fff", border: "1px solid #bfdbfe", borderRadius: 12, padding: 24, marginTop: 20 }}>
+        <h3 style={{ margin: "0 0 4px", color: "#1e40af" }}>☁️ Cloud mit diesem Gerät überschreiben</h3>
+        <p style={{ margin: "0 0 18px", fontSize: 14, color: "#64748b" }}>
+          Lädt die Daten <strong>dieses Geräts</strong> in die Cloud hoch und ersetzt dort die bisherigen Daten.
+          Nutze das, wenn in der Cloud noch veraltete Rezepte/Pläne liegen (z.B. falsche Mengen wie „Portion“), die du durch den aktuellen Stand ersetzen möchtest.
+          {status !== "online" && <><br /><br />⚠️ Du musst dafür zuerst oben mit deinem Familien-Code <strong>verbinden</strong>.</>}
+        </p>
+        <button onClick={cloudUeberschreiben} disabled={cloudBusy || status !== "online"} style={{ ...btnStyle("#2563eb"), fontSize: 15, padding: "10px 22px", opacity: (cloudBusy || status !== "online") ? 0.5 : 1, cursor: (cloudBusy || status !== "online") ? "not-allowed" : "pointer" }}>
+          {cloudBusy ? "⏳ Lade hoch…" : "☁️ Cloud jetzt überschreiben"}
+        </button>
+      </div>
+
+      {/* Lokale Daten zurücksetzen */}
+      <div style={{ background: "#fff", border: "1px solid #fecaca", borderRadius: 12, padding: 24, marginTop: 20 }}>
+        <h3 style={{ margin: "0 0 4px", color: "#991b1b" }}>🧹 Lokale Daten zurücksetzen</h3>
+        <p style={{ margin: "0 0 18px", fontSize: 14, color: "#64748b" }}>
+          Löscht alle auf <strong>diesem Gerät</strong> gespeicherten Daten (Rezepte, Pläne, Vorlieben, Verlauf, Einkaufslisten) und lädt die App neu mit den aktuellen Standard-Rezepten.
+          Nutze das, wenn Mengen/Einheiten in der Einkaufsliste falsch angezeigt werden (z.B. „Portion“ statt Gramm).
+          {config?.household && <><br /><br />⚠️ <strong>Achtung:</strong> Du bist mit einem Familien-Code verbunden. Lösche zuerst die Verbindung („Trennen“), sonst werden die alten Cloud-Daten beim nächsten Verbinden wieder geladen.</>}
+        </p>
+        <button
+          onClick={() => {
+            if (confirm("Wirklich ALLE lokalen Daten auf diesem Gerät löschen und die App neu starten? Dies kann nicht rückgängig gemacht werden.")) {
+              try { localStorage.clear(); } catch {}
+              location.reload();
+            }
+          }}
+          style={{ ...btnStyle("#dc2626"), fontSize: 15, padding: "10px 22px" }}
+        >
+          🧹 Lokale Daten löschen & neu starten
+        </button>
+      </div>
     </div>
   );
 }
@@ -1272,23 +1355,7 @@ const rezeptZeileStyle = { background: "#f8fafc", border: "1px solid #e2e8f0", b
 
 function App() {
   const [tab, setTab] = useState("wochenplan");
-  const [rezepte, setRezepte] = useState(() => {
-    const geladen = load("rezepte", STARTER_REZEPTE);
-    // Migration: alte Rezepte mit String-Zutaten (vor Mengen-Update) durch aktuelle Versionen ersetzen
-    const aktuelleById = {};
-    [...STARTER_REZEPTE, ...ABENTEUER_REZEPTE].forEach(r => { aktuelleById[r.id] = r; });
-    return geladen.map(r => {
-      const hatAlteZutaten = Array.isArray(r.zutaten) && r.zutaten.some(z => typeof z === "string");
-      if (hatAlteZutaten && aktuelleById[r.id]) {
-        return { ...r, zutaten: aktuelleById[r.id].zutaten };
-      }
-      if (hatAlteZutaten) {
-        // Unbekanntes/eigenes Rezept mit altem Format -> in neues Format überführen (1 Portion je Zutat)
-        return { ...r, zutaten: r.zutaten.map(z => typeof z === "string" ? { name: z, menge: 1, einheit: "Portion" } : z) };
-      }
-      return r;
-    });
-  });
+  const [rezepte, setRezepte] = useState(() => migriereRezepte(load("rezepte", STARTER_REZEPTE)));
   const [vorlieben, setVorlieben] = useState(() => load("vorlieben", DEFAULT_VORLIEBEN));
   const [kalender, setKalender] = useState(() => load("kalender", {}));
   const [wochenplan, setWochenplan] = useState(() => load("wochenplan", {}));
@@ -1322,8 +1389,9 @@ function App() {
     const setterMap = { rezepte: setRezepte, vorlieben: setVorlieben, kalender: setKalender, wochenplan: setWochenplan, verlauf: setVerlauf };
     const setter = setterMap[key];
     if (setter) {
-      setter(value);
-      try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+      const wert = (key === "rezepte") ? migriereRezepte(value) : value;
+      setter(wert);
+      try { localStorage.setItem(key, JSON.stringify(wert)); } catch {}
     }
   }, []);
 
@@ -1407,7 +1475,7 @@ function App() {
         {tab === "vorlieben" && <VorliebenView vorlieben={vorlieben} setVorlieben={setVorlieben} />}
         {tab === "kalender" && <KalenderView kalender={kalender} setKalender={setKalender} />}
         {tab === "verlauf" && <VerlaufView verlauf={verlauf} vorlieben={vorlieben} />}
-        {tab === "sync" && <SyncView config={syncConfig} setConfig={setSyncConfig} status={syncStatus} />}
+        {tab === "sync" && <SyncView config={syncConfig} setConfig={setSyncConfig} status={syncStatus} alleDaten={{ rezepte, vorlieben, kalender, wochenplan, verlauf }} />}
       </div>
     </div>
   );
