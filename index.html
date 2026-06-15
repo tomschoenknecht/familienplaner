@@ -414,15 +414,21 @@ function WochenplanView({ wochenplan, setWochenplan, rezepte, vorlieben, kalende
 
   const generiereEinkaufsliste = () => {
     const aktuelleById = {};
-    [...rezepte, ...ABENTEUER_REZEPTE].forEach(r => { aktuelleById[r.id] = r; });
+    const aktuelleByName = {};
+    [...rezepte, ...ABENTEUER_REZEPTE].forEach(r => {
+      aktuelleById[r.id] = r;
+      aktuelleByName[r.name.toLowerCase()] = r;
+    });
 
     const zutatenMap = {}; // key: "name|einheit" -> { name, einheit, menge }
     Object.entries(plan).forEach(([tag, mahlzeitenDesTages]) => {
       Object.entries(mahlzeitenDesTages).forEach(([m, mahlzeit]) => {
         let zutatenListe = mahlzeit?.zutaten;
         // Falls im Plan noch alte String-Zutaten gespeichert sind, aktuelle Zutaten des Rezepts (mit Mengen) verwenden
-        if (zutatenListe?.some(z => typeof z === "string") && mahlzeit?.id && aktuelleById[mahlzeit.id]) {
-          zutatenListe = aktuelleById[mahlzeit.id].zutaten;
+        if (zutatenListe?.some(z => typeof z === "string")) {
+          const passendesRezept = (mahlzeit?.id && aktuelleById[mahlzeit.id])
+            || (mahlzeit?.name && aktuelleByName[mahlzeit.name.toLowerCase()]);
+          if (passendesRezept) zutatenListe = passendesRezept.zutaten;
         }
         if (zutatenListe) {
           // Rezept-Mengen sind für 4 Personen kalkuliert -> auf tatsächliche Anwesenheit skalieren
@@ -449,6 +455,16 @@ function WochenplanView({ wochenplan, setWochenplan, rezepte, vorlieben, kalende
         item.menge = Math.round(item.menge * 4) / 4; // auf Viertel runden (z.B. 0.25 Zwiebel)
         if (item.menge < 0.25 && item.menge > 0) item.menge = 0.25;
       }
+    });
+    // Bereinigung: veraltete "Portion"-Einträge entfernen, wenn für dieselbe Zutat
+    // bereits ein Eintrag mit einer "echten" Einheit (g, ml, Stück, ...) existiert.
+    Object.keys(zutatenMap).forEach(key => {
+      const item = zutatenMap[key];
+      if (item.einheit !== "Portion") return;
+      const hatEchteEinheit = Object.values(zutatenMap).some(
+        other => other !== item && other.name.toLowerCase() === item.name.toLowerCase() && other.einheit !== "Portion"
+      );
+      if (hatEchteEinheit) delete zutatenMap[key];
     });
     // Kategorisieren
     const nachKategorie = {};
