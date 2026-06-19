@@ -20,7 +20,9 @@ const { useState, useEffect, useCallback } = React;
 
 
 // ─── Konstanten ────────────────────────────────────────────────────────────────
-const FAMILIE = ["Jette", "Ylvie", "Juliane", "Tom"];
+// FAMILIE wird beim App-Start aus localStorage geladen und über familieAktuell verfügbar gemacht.
+// Der Fallback-Wert wird nur genutzt, wenn noch keine Einrichtung stattgefunden hat.
+let FAMILIE = ["Jette", "Ylvie", "Juliane", "Tom"];
 const FARBEN = { Jette: "#d9a9a0", Ylvie: "#c9a96e", Juliane: "#8fa888", Tom: "#8ba3b0" };
 // Auswählbare Avatar-Farben (dezente, zur warmen Palette passende Töne)
 const AVATAR_FARBPALETTE = ["#d9a9a0", "#c9a96e", "#8fa888", "#8ba3b0", "#b89bc4", "#c08552", "#9bab7a", "#a8848f"];
@@ -306,7 +308,7 @@ let _sb = null;            // Supabase-Client
 let _household = null;     // Haushalts-Code
 let _channel = null;       // Realtime-Channel
 let _libPromise = null;    // Lade-Promise der Bibliothek
-const DATEN_KEYS = ["rezepte", "vorlieben", "kalender", "wochenplan", "verlauf", "avatarFarben"];
+const DATEN_KEYS = ["rezepte", "vorlieben", "kalender", "wochenplan", "verlauf", "avatarFarben", "familie"];
 
 // Migriert Rezepte mit altem/unvollständigem Zutaten-Format (Strings oder Objekte ohne Einheit/Menge)
 // in das aktuelle Objekt-Format mit Mengen & Einheiten. Wird überall angewendet, wo Rezepte gesetzt werden
@@ -2092,8 +2094,106 @@ const rezeptZeileStyle = { background: "#f8fafc", border: "1px solid #e2e8f0", b
 
 // ─── Haupt-App ────────────────────────────────────────────────────────────────
 
+// ── Einrichtungs-Dialog ────────────────────────────────────────────────────────
+
+function EinrichtungsDialog({ onFertig }) {
+  const [anzahl, setAnzahl] = useState(4);
+  const [namen, setNamen] = useState(["", "", "", ""]);
+
+  const setAnzahlUnd = (n) => {
+    setAnzahl(n);
+    setNamen(prev => {
+      const neu = Array(n).fill("").map((_, i) => prev[i] || "");
+      return neu;
+    });
+  };
+
+  const setName = (i, val) => setNamen(prev => prev.map((n, idx) => idx === i ? val : n));
+
+  const alleAusgefüllt = namen.every(n => n.trim().length > 0);
+
+  const fertig = () => {
+    const bereinigt = namen.map(n => n.trim());
+    onFertig(bereinigt);
+  };
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(30,15,5,0.55)", zIndex: 1000,
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+    }}>
+      <div style={{ background: "#fffcf8", borderRadius: 20, padding: 36, maxWidth: 460, width: "100%", boxShadow: "0 24px 64px rgba(30,15,5,0.25)" }}>
+        <h2 style={{ margin: "0 0 6px", color: "#3b2412", fontSize: 24, fontWeight: 800 }}>Willkommen!</h2>
+        <p style={{ margin: "0 0 28px", color: "#b08968", fontSize: 15 }}>Richte deinen Familienplaner ein. Du kannst das später jederzeit in den Einstellungen ändern.</p>
+
+        {/* Anzahl */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontWeight: 700, color: "#3b2412", marginBottom: 10, fontSize: 14 }}>Wie viele Personen plant ihr gemeinsam?</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {[2, 3, 4, 5, 6, 7, 8].map(n => (
+              <button key={n} onClick={() => setAnzahlUnd(n)} style={{
+                width: 44, height: 44, borderRadius: 10, border: `2px solid ${anzahl === n ? "#c2410c" : "#e8d4ba"}`,
+                background: anzahl === n ? "#c2410c" : "#fff", color: anzahl === n ? "#fff" : "#3b2412",
+                fontWeight: 700, fontSize: 16, cursor: "pointer", transition: "all .15s",
+              }}>{n}</button>
+            ))}
+          </div>
+        </div>
+
+        {/* Namen */}
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ fontWeight: 700, color: "#3b2412", marginBottom: 10, fontSize: 14 }}>Und wie heißt ihr?</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {namen.map((name, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{
+                  width: 32, height: 32, borderRadius: "50%", background: AVATAR_FARBPALETTE[i % AVATAR_FARBPALETTE.length],
+                  display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 13, color: "#fff", flexShrink: 0,
+                }}>{name.trim() ? name.trim()[0].toUpperCase() : (i + 1)}</span>
+                <input
+                  value={name}
+                  onChange={e => setName(i, e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && i < namen.length - 1 && document.querySelectorAll(".einrichtung-input")[i + 1]?.focus()}
+                  placeholder={`Person ${i + 1}`}
+                  className="einrichtung-input"
+                  autoComplete="off" autoCorrect="off" spellCheck="false"
+                  style={{ flex: 1, padding: "10px 14px", border: "2px solid #e8d4ba", borderRadius: 10, fontSize: 15, fontFamily: "inherit", outline: "none", color: "#3b2412" }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <button
+          onClick={fertig}
+          disabled={!alleAusgefüllt}
+          style={{
+            width: "100%", padding: "14px", borderRadius: 12, border: "none",
+            background: alleAusgefüllt ? "#c2410c" : "#e8d4ba",
+            color: alleAusgefüllt ? "#fff" : "#a08060",
+            fontWeight: 800, fontSize: 16, cursor: alleAusgefüllt ? "pointer" : "default",
+            transition: "all .2s",
+          }}>
+          Los geht's!
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [tab, setTab] = useState("wochenplan");
+  const [familie, setFamilieRaw] = useState(() => load("familie", null));
+
+  // Modul-Variable FAMILIE synchron halten, damit alle Komponenten darauf zugreifen
+  if (familie) FAMILIE = familie;
+
+  const familieEinrichten = (namen) => {
+    FAMILIE = namen;
+    save("familie", namen);
+    setFamilieRaw(namen);
+  };
+
   const [rezepte, setRezepte] = useState(() => migriereRezepte(load("rezepte", STARTER_REZEPTE)));
   const [vorlieben, setVorlieben] = useState(() => load("vorlieben", DEFAULT_VORLIEBEN));
   const [kalender, setKalender] = useState(() => load("kalender", {}));
@@ -2136,7 +2236,7 @@ function App() {
     // Eigene Echo-Updates kurz nach dem Senden ignorieren (verhindert "Zurückspringen" beim Tippen, v.a. auf Mobilgeräten)
     const seit = Date.now() - (_zuletztGesendet[key] || 0);
     if (seit < 2500) return;
-    const setterMap = { rezepte: setRezepte, vorlieben: setVorlieben, kalender: setKalender, wochenplan: setWochenplan, verlauf: setVerlauf, avatarFarben: setAvatarFarbenRaw };
+    const setterMap = { rezepte: setRezepte, vorlieben: setVorlieben, kalender: setKalender, wochenplan: setWochenplan, verlauf: setVerlauf, avatarFarben: setAvatarFarbenRaw, familie: (v) => { FAMILIE = v; setFamilieRaw(v); } };
     const setter = setterMap[key];
     if (setter) {
       const wert = (key === "rezepte") ? migriereRezepte(value) : value;
@@ -2198,6 +2298,7 @@ function App() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#fdf6ee", fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
+      {!familie && <EinrichtungsDialog onFertig={familieEinrichten} />}
       {/* Header */}
       <div style={{ position: "relative", overflow: "hidden", aspectRatio: "2.4 / 1", minHeight: 320, maxHeight: 520 }}>
         <div style={{
