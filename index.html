@@ -11,6 +11,57 @@
   html, body, #root { margin: 0; padding: 0; min-height: 100vh; }
   * { box-sizing: border-box; }
   body { font-family: 'Inter', 'Segoe UI', sans-serif; }
+
+  /* ── Mobile Fixes ─────────────────────────────────────── */
+  /* Navigation scrollbar verstecken */
+  nav { -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  nav::-webkit-scrollbar { display: none; }
+
+  /* Hauptinhalt Padding */
+  .main-content { padding: 20px 16px; max-width: 1200px; margin: 0 auto; }
+  @media (min-width: 640px) { .main-content { padding: 28px 24px; } }
+
+  /* Wochenplan: auf Mobil Tageskarten untereinander */
+  .wochenplan-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  @media (min-width: 640px) { .wochenplan-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 900px) { .wochenplan-grid { grid-template-columns: repeat(4, 1fr); } }
+
+  /* Wochenplan KW-Zeile */
+  .kw-zeile { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+  .kw-text { font-size: 13px; font-weight: 700; color: #7c5c42; text-align: center; flex: 1; }
+  @media (min-width: 640px) { .kw-text { font-size: 15px; } }
+
+  /* Button-Zeile Wrap */
+  .btn-zeile { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .btn-zeile button { flex: 1 1 auto; min-width: 140px; }
+
+  /* Vorlieben: 2-Spalten-Grid auf Mobil zu 1 Spalte */
+  .vorlieben-grid { display: grid; grid-template-columns: 1fr; gap: 14px; margin-bottom: 24px; }
+  @media (min-width: 640px) { .vorlieben-grid { grid-template-columns: 1fr 1fr; gap: 20px; } }
+
+  /* Rezepte: Karten-Grid */
+  .rezepte-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  @media (min-width: 500px) { .rezepte-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 900px) { .rezepte-grid { grid-template-columns: repeat(3, 1fr); } }
+
+  /* Einkaufsliste: Grid auf Mobil 1 Spalte */
+  .einkauf-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  @media (min-width: 500px) { .einkauf-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 900px) { .einkauf-grid { grid-template-columns: repeat(3, 1fr); } }
+
+  /* Übersicht Vorlieben */
+  .uebersicht-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  @media (min-width: 640px) { .uebersicht-grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; } }
+
+  /* Header: kleiner auf Mobil */
+  @media (max-width: 639px) {
+    .header-titel { font-size: 22px !important; }
+    .header-namen { font-size: 12px !important; }
+    .sync-btn { font-size: 11px !important; padding: 5px 10px !important; }
+  }
+
+  /* Kalender: scrollbar horizontal */
+  .kalender-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 </style>
 </head>
 <body>
@@ -278,6 +329,28 @@ const STARTER_REZEPTE = [
   { id: "r108", name: "Polenta mit Tomatensauce",       kategorie: "Vegetarisch", dauer: 30, zutaten: [{ name: "Polenta", menge: 240, einheit: "g" }, { name: "Parmesan", menge: 80, einheit: "g" }, { name: "Butter", menge: 60, einheit: "g" }, { name: "Tomaten", menge: 3, einheit: "Stück" }, { name: "Knoblauch", menge: 2, einheit: "Zehe" }, { name: "Kräuter", menge: 0.4, einheit: "Bund" }], tags: ["Vegetarisch", "Kinder mögen's", "Schnell"], link: "https://www.chefkoch.de/rezepte/1108411212818622/Polenta-mit-Tomatensoße.html", bewertungen: {} },
   { id: "r109", name: "Putenschnitzel mit Brokkoli",    kategorie: "Fleisch",     dauer: 30, zutaten: [{ name: "Putenschnitzel", menge: 4, einheit: "Stück" }, { name: "Brokkoli", menge: 300, einheit: "g" }, { name: "Kartoffeln", menge: 600, einheit: "g" }, { name: "Butter", menge: 60, einheit: "g" }, { name: "Zitrone", menge: 1, einheit: "Stück" }, { name: "Semmelbrösel", menge: 80, einheit: "g" }], tags: ["Kinder mögen's", "Gesund", "Familienessen"], link: "https://www.chefkoch.de/rezepte/522861139099548/Truthahnschnitzel.html", bewertungen: {} },
   { id: "r110", name: "Gemüsecouscous",                 kategorie: "Vegetarisch", dauer: 25, zutaten: [{ name: "Couscous", menge: 240, einheit: "g" }, { name: "Zucchini", menge: 300, einheit: "g" }, { name: "Paprika", menge: 2, einheit: "Stück" }, { name: "Möhren", menge: 240, einheit: "g" }, { name: "Kichererbsen", menge: 240, einheit: "g" }, { name: "Harissa", menge: 1, einheit: "TL" }, { name: "Brühe", menge: 600, einheit: "ml" }], tags: ["Vegan", "Schnell", "Gesund"], link: "https://www.chefkoch.de/rezepte/2110371334619052/Gemüsecouscous.html", bewertungen: {} },
+
+  // ── Brotbox-Rezepte ─────────────────────────────────────────────────────────
+  { id: "b1",  name: "Käsebrot mit Gurke & Tomate",    kategorie: "Brotbox", dauer: 5,  zutaten: [{ name: "Vollkornbrot", menge: 2, einheit: "Scheibe" }, { name: "Käse", menge: 40, einheit: "g" }, { name: "Gurken", menge: 0.5, einheit: "Stück" }, { name: "Tomaten", menge: 1, einheit: "Stück" }], tags: ["Kinder mögen's", "Schnell", "Vegetarisch"], bewertungen: {} },
+  { id: "b2",  name: "Sandwich mit Schinken & Käse",   kategorie: "Brotbox", dauer: 5,  zutaten: [{ name: "Toastbrot", menge: 2, einheit: "Scheibe" }, { name: "Schinken", menge: 40, einheit: "g" }, { name: "Käse", menge: 40, einheit: "g" }, { name: "Salat", menge: 20, einheit: "g" }], tags: ["Kinder mögen's", "Schnell", "Klassiker"], bewertungen: {} },
+  { id: "b3",  name: "Laugenbrezel mit Joghurt-Dip",   kategorie: "Brotbox", dauer: 5,  zutaten: [{ name: "Laugenbrezel", menge: 1, einheit: "Stück" }, { name: "Joghurt", menge: 80, einheit: "g" }, { name: "Kräuter", menge: 1, einheit: "Prise" }], tags: ["Kinder mögen's", "Schnell"], bewertungen: {} },
+  { id: "b4",  name: "Wrap mit Frischkäse & Gemüse",   kategorie: "Brotbox", dauer: 8,  zutaten: [{ name: "Tortillas", menge: 1, einheit: "Stück" }, { name: "Frischkäse", menge: 40, einheit: "g" }, { name: "Paprika", menge: 0.5, einheit: "Stück" }, { name: "Gurken", menge: 0.5, einheit: "Stück" }, { name: "Salat", menge: 20, einheit: "g" }], tags: ["Kinder mögen's", "Vegetarisch", "Schnell"], bewertungen: {} },
+  { id: "b5",  name: "Vollkornbrot mit Hüttenkäse",    kategorie: "Brotbox", dauer: 5,  zutaten: [{ name: "Vollkornbrot", menge: 2, einheit: "Scheibe" }, { name: "Hüttenkäse", menge: 80, einheit: "g" }, { name: "Paprika", menge: 0.5, einheit: "Stück" }], tags: ["Gesund", "Vegetarisch", "Schnell"], bewertungen: {} },
+  { id: "b6",  name: "Brot mit Erdnussbutter & Banane", kategorie: "Brotbox", dauer: 5, zutaten: [{ name: "Vollkornbrot", menge: 2, einheit: "Scheibe" }, { name: "Erdnussbutter", menge: 1, einheit: "EL" }, { name: "Bananen", menge: 0.5, einheit: "Stück" }], tags: ["Kinder mögen's", "Schnell", "Vegetarisch"], bewertungen: {} },
+  { id: "b7",  name: "Bagel mit Lachs & Frischkäse",   kategorie: "Brotbox", dauer: 8,  zutaten: [{ name: "Bagel", menge: 1, einheit: "Stück" }, { name: "Frischkäse", menge: 40, einheit: "g" }, { name: "Lachs", menge: 40, einheit: "g" }, { name: "Gurken", menge: 0.5, einheit: "Stück" }], tags: ["Fisch", "Schnell", "Gesund"], bewertungen: {} },
+  { id: "b8",  name: "Knäckebrot mit Hummus & Möhren", kategorie: "Brotbox", dauer: 5,  zutaten: [{ name: "Knäckebrot", menge: 3, einheit: "Stück" }, { name: "Hummus", menge: 3, einheit: "EL" }, { name: "Möhren", menge: 1, einheit: "Stück" }], tags: ["Vegan", "Gesund", "Schnell"], bewertungen: {} },
+  { id: "b9",  name: "Körnerbrötchen mit Aufschnitt",  kategorie: "Brotbox", dauer: 5,  zutaten: [{ name: "Brötchen", menge: 1, einheit: "Stück" }, { name: "Aufschnitt", menge: 40, einheit: "g" }, { name: "Käse", menge: 30, einheit: "g" }], tags: ["Kinder mögen's", "Schnell", "Klassiker"], bewertungen: {} },
+  { id: "b10", name: "Mini-Sandwiches mit Ei & Kresse", kategorie: "Brotbox", dauer: 10, zutaten: [{ name: "Toastbrot", menge: 2, einheit: "Scheibe" }, { name: "Eier", menge: 1, einheit: "Stück" }, { name: "Mayonnaise", menge: 1, einheit: "TL" }, { name: "Kresse", menge: 1, einheit: "Prise" }], tags: ["Vegetarisch", "Kinder mögen's", "Klassiker"], bewertungen: {} },
+  { id: "b11", name: "Brot mit Avocado & Tomate",      kategorie: "Brotbox", dauer: 5,  zutaten: [{ name: "Vollkornbrot", menge: 2, einheit: "Scheibe" }, { name: "Avocado", menge: 0.5, einheit: "Stück" }, { name: "Tomaten", menge: 1, einheit: "Stück" }, { name: "Zitronensaft", menge: 1, einheit: "Spritzer" }], tags: ["Vegan", "Gesund", "Schnell"], bewertungen: {} },
+  { id: "b12", name: "Wrap mit Hähnchen & Salat",      kategorie: "Brotbox", dauer: 10, zutaten: [{ name: "Tortillas", menge: 1, einheit: "Stück" }, { name: "Hähnchenbrust", menge: 60, einheit: "g" }, { name: "Salat", menge: 20, einheit: "g" }, { name: "Joghurt-Dip", menge: 1, einheit: "EL" }], tags: ["Kinder mögen's", "Schnell", "Gesund"], bewertungen: {} },
+  { id: "b13", name: "Brot mit Frischkäse & Lachs",    kategorie: "Brotbox", dauer: 5,  zutaten: [{ name: "Graubrot", menge: 2, einheit: "Scheibe" }, { name: "Frischkäse", menge: 40, einheit: "g" }, { name: "Lachs", menge: 40, einheit: "g" }, { name: "Dill", menge: 1, einheit: "Prise" }], tags: ["Fisch", "Schnell", "Gesund"], bewertungen: {} },
+  { id: "b14", name: "Mini-Pitas mit Falafel",         kategorie: "Brotbox", dauer: 10, zutaten: [{ name: "Mini-Pitas", menge: 2, einheit: "Stück" }, { name: "Falafel", menge: 3, einheit: "Stück" }, { name: "Joghurt-Dip", menge: 1, einheit: "EL" }, { name: "Salat", menge: 20, einheit: "g" }], tags: ["Vegetarisch", "Kinder mögen's", "Spaßig"], bewertungen: {} },
+  { id: "b15", name: "Lunchbox mit Rohkost & Dip",     kategorie: "Brotbox", dauer: 8,  zutaten: [{ name: "Möhren", menge: 2, einheit: "Stück" }, { name: "Gurken", menge: 0.5, einheit: "Stück" }, { name: "Paprika", menge: 0.5, einheit: "Stück" }, { name: "Hummus", menge: 3, einheit: "EL" }, { name: "Vollkornbrot", menge: 1, einheit: "Scheibe" }], tags: ["Vegan", "Gesund", "Kinder mögen's"], bewertungen: {} },
+  { id: "b16", name: "Toast mit Schinkenkäse getoastet", kategorie: "Brotbox", dauer: 8, zutaten: [{ name: "Toastbrot", menge: 2, einheit: "Scheibe" }, { name: "Schinken", menge: 30, einheit: "g" }, { name: "Käse", menge: 40, einheit: "g" }], tags: ["Kinder mögen's", "Klassiker", "Schnell"], bewertungen: {} },
+  { id: "b17", name: "Brot mit Camembert & Traube",    kategorie: "Brotbox", dauer: 5,  zutaten: [{ name: "Baguette", menge: 2, einheit: "Scheibe" }, { name: "Camembert", menge: 40, einheit: "g" }, { name: "Trauben", menge: 50, einheit: "g" }, { name: "Walnüsse", menge: 10, einheit: "g" }], tags: ["Vegetarisch", "Besonders", "Kinder mögen's"], bewertungen: {} },
+  { id: "b18", name: "Müsliriegel & Obstbox",          kategorie: "Brotbox", dauer: 3,  zutaten: [{ name: "Müsliriegel", menge: 2, einheit: "Stück" }, { name: "Äpfel", menge: 1, einheit: "Stück" }, { name: "Trauben", menge: 50, einheit: "g" }], tags: ["Kinder mögen's", "Schnell", "Vegetarisch"], bewertungen: {} },
+  { id: "b19", name: "Bento-Box mit Reis & Hühnchen",  kategorie: "Brotbox", dauer: 12, zutaten: [{ name: "Reis", menge: 80, einheit: "g" }, { name: "Hähnchenbrust", menge: 60, einheit: "g" }, { name: "Gurken", menge: 0.5, einheit: "Stück" }, { name: "Sojasoße", menge: 1, einheit: "TL" }], tags: ["Kinder mögen's", "Asiatisch", "Spaßig"], bewertungen: {} },
+  { id: "b20", name: "Wrap mit Putenbrust & Paprika",  kategorie: "Brotbox", dauer: 8,  zutaten: [{ name: "Tortillas", menge: 1, einheit: "Stück" }, { name: "Putenbrust", menge: 60, einheit: "g" }, { name: "Paprika", menge: 0.5, einheit: "Stück" }, { name: "Salatblätter", menge: 20, einheit: "g" }, { name: "Senf", menge: 1, einheit: "TL" }], tags: ["Kinder mögen's", "Schnell", "Gesund"], bewertungen: {} },
 ];
 
 const ABENTEUER_REZEPTE = [
@@ -573,13 +646,13 @@ function Navigation({ aktiv, setAktiv, syncStatus }) {
     { id: "sync", label: "Sync" },
   ];
   return (
-    <nav style={{ display: "flex", gap: 4, overflowX: "auto" }}>
+    <nav style={{ display: "flex", gap: 2, overflowX: "auto" }}>
       {tabs.map(t => (
         <button key={t.id} onClick={() => setAktiv(t.id)} style={{
           background: aktiv === t.id ? "#fff" : "transparent",
           color: aktiv === t.id ? "#c2410c" : "#8a6a4c",
-          border: "none", padding: "12px 20px", cursor: "pointer",
-          fontFamily: "inherit", fontSize: 14, fontWeight: aktiv === t.id ? 700 : 600,
+          border: "none", padding: "10px 14px", cursor: "pointer",
+          fontFamily: "inherit", fontSize: 13, fontWeight: aktiv === t.id ? 700 : 600,
           borderRadius: "10px 10px 0 0", whiteSpace: "nowrap", transition: "all .2s",
         }}>
           {t.label}
@@ -700,11 +773,22 @@ function WochenplanView({ wochenplan, setWochenplan, rezepte, vorlieben, kalende
         }
         if (m === "Brotbox") {
           if ([5, 6].includes(ti)) { neuerPlan[tag][m] = null; return; } // Keine Brotbox am Wochenende
+          // Brotbox-Rezepte aus der Bibliothek bevorzugen, sonst feste Optionen
+          const brotboxRezepte = alleRezepte.filter(r => r.kategorie === "Brotbox" && rezeptKompatibel(r, vorlieben, anwesend));
+          if (brotboxRezepte.length > 0) {
+            const gewählt = brotboxRezepte[Math.floor(Math.random() * brotboxRezepte.length)];
+            neuerPlan[tag][m] = { ...gewählt, typ: "brotbox" };
+            return;
+          }
           const brotboxOptionen = [
-            "Käsebrot & Apfel", "Laugenbrezel & Joghurt", "Sandwich mit Schinken", "Wraps mit Gemüse & Frischkäse",
-            "Brot mit Frischkäse & Gurke", "Mini-Croissant & Trauben", "Brot mit Hüttenkäse & Paprika",
+            "Käsebrot & Apfel", "Laugenbrezel & Joghurt", "Sandwich mit Schinken",
+            "Wraps mit Gemüse & Frischkäse", "Brot mit Frischkäse & Gurke",
+            "Mini-Croissant & Trauben", "Brot mit Hüttenkäse & Paprika",
+            "Brot mit Erdnussbutter & Banane", "Vollkornbrot mit Käse & Tomate",
+            "Körner-Brötchen mit Aufschnitt", "Toast mit Avocado & Ei",
+            "Bagel mit Frischkäse & Lachs", "Knäckebrot mit Hummus",
           ];
-          neuerPlan[tag][m] = { name: brotboxOptionen[ti % brotboxOptionen.length], typ: "brotbox" };
+          neuerPlan[tag][m] = { name: brotboxOptionen[Math.floor(Math.random() * brotboxOptionen.length)], typ: "brotbox" };
           return;
         }
         if (m === "Mittagessen" && [0,1,2,3,4].includes(ti)) {
@@ -943,23 +1027,23 @@ function WochenplanView({ wochenplan, setWochenplan, rezepte, vorlieben, kalende
   return (
     <div>
       {/* Header-Leiste */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-        <button onClick={() => setWeekOffset(w => w - 1)} style={btnStyle("#a05a2c")}>← Vorherige</button>
-        <h2 style={{ margin: 0, fontSize: 18, color: "#3b2412", flex: 1, textAlign: "center" }}>
-          KW ab {weekDates[0]} – {weekDates[6]}
-          {weekOffset === 1 ? " · Aktuelle Planwoche" : ""}
-        </h2>
-        <button onClick={() => setWeekOffset(w => w + 1)} style={btnStyle("#a05a2c")}>Nächste →</button>
+      <div className="kw-zeile">
+        <button onClick={() => setWeekOffset(w => w - 1)} style={{ ...btnStyle("#a05a2c"), padding: "8px 14px", fontSize: 13, flexShrink: 0 }}>← Vor.</button>
+        <div className="kw-text">
+          {weekDates[0]} – {weekDates[6]}
+          {weekOffset === 1 ? <><br/><span style={{ fontSize: 11, fontWeight: 600, color: "#c2410c" }}>Aktuelle Woche</span></> : ""}
+        </div>
+        <button onClick={() => setWeekOffset(w => w + 1)} style={{ ...btnStyle("#a05a2c"), padding: "8px 14px", fontSize: 13, flexShrink: 0 }}>Nächste →</button>
       </div>
 
-      <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
-        <button onClick={generiereWochenplan} disabled={generating} style={{ ...btnStyle("#c2410c"), fontSize: 15, padding: "10px 22px" }}>
+      <div className="btn-zeile">
+        <button onClick={generiereWochenplan} disabled={generating} style={{ ...btnStyle("#c2410c"), fontSize: 14, padding: "10px 18px" }}>
           {generating ? "Plane…" : "Wochenplan generieren"}
         </button>
         {Object.keys(plan).length > 0 && <>
           <button onClick={generiereEinkaufsliste} style={btnStyle("#4d7c5a")}>Einkaufsliste</button>
-          <button onClick={speichereWoche} style={btnStyle("#a05a2c")}>Woche speichern</button>
-          <button onClick={druckeWochenplan} style={btnStyle("#8a6a4c")}>Wochenplan drucken</button>
+          <button onClick={speichereWoche} style={btnStyle("#a05a2c")}>Speichern</button>
+          <button onClick={druckeWochenplan} style={btnStyle("#8a6a4c")}>Drucken</button>
         </>}
       </div>
 
@@ -979,8 +1063,38 @@ function WochenplanView({ wochenplan, setWochenplan, rezepte, vorlieben, kalende
           <p style={{ fontSize: 18, fontWeight: 700, color: "#7c5c42" }}>Noch kein Plan für diese Woche.</p>
           <p>Klicke auf „Wochenplan generieren" um loszulegen!</p>
         </div>
-      ) : (
-        <div style={{ overflowX: "auto" }}>
+      ) : (<>
+        {/* Mobile: Tageskarten */}
+        <div className="wochenplan-grid" style={{ display: "none" }} id="mobile-plan">
+          {WOCHENTAGE.map((tag, i) => (
+            <div key={tag} style={{ background: "#fff", borderRadius: 14, border: "1px solid #f3e4d4", overflow: "hidden", boxShadow: "0 2px 10px #a0703010" }}>
+              <div style={{ background: "#fdf1e2", padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontWeight: 800, fontSize: 14, color: "#c2410c" }}>{tag}</span>
+                <span style={{ fontSize: 11, color: "#b08968" }}>{weekDates[i]}</span>
+              </div>
+              {MAHLZEITEN.map(m => {
+                const mahlzeit = plan[tag]?.[m];
+                const anwesend = anwesendAn(tag, m);
+                return (
+                  <div key={m} style={{ borderTop: "1px solid #f3e4d4", padding: "8px 12px" }}>
+                    <div style={{ background: MAHLZEIT_META[m].farbe, borderRadius: 6, padding: "3px 8px", display: "inline-block", marginBottom: 5 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: MAHLZEIT_META[m].textfarbe }}>{m}</span>
+                    </div>
+                    <MahlzeitKarte
+                      mahlzeit={mahlzeit}
+                      onClick={() => setEditSlot({ tag, m })}
+                      anwesend={anwesend}
+                      onTogglePerson={(person) => togglePersonAnwesenheit(person, weekDates[WOCHENTAGE.indexOf(tag)], m)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop: Tabelle */}
+        <div style={{ overflowX: "auto" }} id="desktop-plan">
           <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 6 }}>
             <thead>
               <tr>
@@ -996,13 +1110,8 @@ function WochenplanView({ wochenplan, setWochenplan, rezepte, vorlieben, kalende
             <tbody>
               {MAHLZEITEN.map(m => (
                 <tr key={m}>
-                  <td style={{
-                    padding: "8px 12px", fontWeight: 600, fontSize: 13, verticalAlign: "top",
-                    color: MAHLZEIT_META[m].textfarbe,
-                  }}>
-                    <div style={{ background: MAHLZEIT_META[m].farbe, borderRadius: 8, padding: "6px 10px", display: "inline-block" }}>
-                      {m}
-                    </div>
+                  <td style={{ padding: "8px 12px", fontWeight: 600, fontSize: 13, verticalAlign: "top", color: MAHLZEIT_META[m].textfarbe }}>
+                    <div style={{ background: MAHLZEIT_META[m].farbe, borderRadius: 8, padding: "6px 10px", display: "inline-block" }}>{m}</div>
                   </td>
                   {WOCHENTAGE.map(tag => {
                     const mahlzeit = plan[tag]?.[m];
@@ -1023,7 +1132,13 @@ function WochenplanView({ wochenplan, setWochenplan, rezepte, vorlieben, kalende
             </tbody>
           </table>
         </div>
-      )}
+        <style>{`
+          @media (max-width: 639px) {
+            #mobile-plan { display: grid !important; }
+            #desktop-plan { display: none !important; }
+          }
+        `}</style>
+      </>)}
 
       {editSlot && (
         <SlotEditor
@@ -1104,7 +1219,7 @@ function EinkaufslistePanel({ liste, weekDates, onClose, onToggle, onAdd, onRemo
       </div>
 
       {/* Kategorien */}
-      <div style={{ padding: "20px 24px", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 20 }}>
+      <div className="einkauf-grid">
         {anzuzeigendeKats.map(kat => {
           const items = liste[kat] || [];
           const alleAbgehakt = items.length > 0 && items.every(i => i.abgehakt);
@@ -1347,7 +1462,7 @@ function RezepteView({ rezepte, setRezepte }) {
           <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#4d7c5a" }} />
           <h3 style={{ color: "#4d7c5a", margin: 0 }}>Unsere eigenen Rezepte ({eigeneRezepte.length})</h3>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
+        <div className="rezepte-grid">
           {eigeneRezepte.map(r => <RezeptKarte key={r.id} r={r} onDelete={() => löschen(r.id)} akzent="#4d7c5a" />)}
           {eigeneRezepte.length === 0 && (
             <p style={{ color: "#b08968", gridColumn: "1/-1", fontSize: 14 }}>
@@ -1362,7 +1477,7 @@ function RezepteView({ rezepte, setRezepte }) {
           <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#c2410c" }} />
           <h3 style={{ color: "#c2410c", margin: 0 }}>Beliebte Familienrezepte ({beliebteRezepte.length})</h3>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
+        <div className="rezepte-grid">
           {beliebteRezepte.map(r => <RezeptKarte key={r.id} r={r} onDelete={() => löschen(r.id)} akzent="#c2410c" />)}
           {beliebteRezepte.length === 0 && <p style={{ color: "#b08968", gridColumn: "1/-1", fontSize: 14 }}>Keine Rezepte gefunden.</p>}
         </div>
@@ -1373,7 +1488,7 @@ function RezepteView({ rezepte, setRezepte }) {
           <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#7c3aed" }} />
           <h3 style={{ color: "#7c3aed", margin: 0 }}>Abenteuer-Rezepte der App</h3>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
+        <div className="rezepte-grid">
           {ABENTEUER_REZEPTE.map(r => <RezeptKarte key={r.id} r={r} readonly akzent="#7c3aed" />)}
         </div>
       </div>
@@ -1550,7 +1665,7 @@ function VorliebenView({ vorlieben, setVorlieben, avatarFarben, setAvatarFarben 
       </div>
 
       {/* Haupt-Grid: links Vorlieben, rechts Einschränkungen */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 28 }}>
+      <div className="vorlieben-grid">
 
         {/* LINKS: Vorlieben */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -1646,7 +1761,7 @@ function VorliebenView({ vorlieben, setVorlieben, avatarFarben, setAvatarFarben 
       {/* Übersicht aller Familienmitglieder */}
       <div>
         <h3 style={{ margin: "0 0 14px", color: "#3b2412", fontSize: 17 }}>Übersicht aller Vorlieben</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 14 }}>
+        <div className="uebersicht-grid">
           {FAMILIE.map(p => {
             const pv = vorlieben[p] || { mag: [], magNicht: [], unvertraeglichkeiten: [], ernaehrung: "Alles" };
             const pu = pv.unvertraeglichkeiten || [];
@@ -2310,8 +2425,8 @@ function App() {
           <div style={{ width: "100%", maxWidth: 1200, margin: "0 auto", padding: "32px 24px 0" }}>
             <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 14, marginBottom: 28, minHeight: 96 }}>
               <div>
-                <h1 style={{ margin: 0, fontSize: 30, fontWeight: 800, color: "#3b2412", letterSpacing: -0.6 }}>Familienküche</h1>
-                <div style={{ fontSize: 14, color: "#8a6a4c", marginTop: 4, fontWeight: 600 }}>
+                <h1 className="header-titel" style={{ margin: 0, fontSize: 30, fontWeight: 800, color: "#3b2412", letterSpacing: -0.6 }}>Familienküche</h1>
+                <div className="header-namen" style={{ fontSize: 14, color: "#8a6a4c", marginTop: 4, fontWeight: 600 }}>
                   {FAMILIE.join(" · ")}
                 </div>
               </div>
@@ -2328,7 +2443,7 @@ function App() {
       </div>
 
       {/* Content */}
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "28px 24px" }}>
+      <div className="main-content">
         {tab === "wochenplan" && <WochenplanView wochenplan={wochenplan} setWochenplan={setWochenplan} rezepte={rezepte} vorlieben={vorlieben} kalender={kalender} setKalender={setKalender} verlauf={verlauf} setVerlauf={setVerlauf} />}
         {tab === "rezepte" && <RezepteView rezepte={rezepte} setRezepte={setRezepte} />}
         {tab === "vorlieben" && <VorliebenView vorlieben={vorlieben} setVorlieben={setVorlieben} avatarFarben={avatarFarben} setAvatarFarben={setAvatarFarben} />}
