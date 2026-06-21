@@ -2470,7 +2470,14 @@ function App() {
         const remote = await pullAll();
         for (const k of DATEN_KEYS) {
           if (remote && remote[k] !== undefined && remote[k] !== null) {
-            applyRemote(k, remote[k]);          // Cloud-Daten übernehmen
+            const wert = (k === "rezepte") ? migriereRezepte(remote[k]) : remote[k];
+            // Wenn Migration neue Rezepte ergänzt hat → zurück in die Cloud pushen
+            if (k === "rezepte" && Array.isArray(wert) && wert.length > remote[k].length) {
+              applyRemote(k, wert);
+              await pushOne(k, wert);
+            } else {
+              applyRemote(k, remote[k]);
+            }
           } else {
             await pushOne(k, aktuelleDaten[k]);  // lokale Daten in die Cloud hochladen
           }
