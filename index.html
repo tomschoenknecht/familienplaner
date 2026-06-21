@@ -582,6 +582,15 @@ function scoreRezept(rezept, vorlieben, anwesend) {
     if (v.mag.some(m => rezept.tags?.includes(m) || rezept.kategorie?.includes(m))) score += 2;
     if (v.magNicht.some(m => rezept.tags?.includes(m) || rezept.kategorie?.includes(m))) score -= 3;
   });
+
+  // Bewertungs-Score: Durchschnitt aller Stimmen (fair, unabhängig von Familiengröße)
+  // 👍 = +1, 👎 = -1; Durchschnitt × 4 auf den Score addieren (starker aber nicht dominierender Einfluss)
+  const stimmen = Object.values(rezept.bewertungen || {}).filter(v => v !== undefined);
+  if (stimmen.length > 0) {
+    const durchschnitt = stimmen.reduce((a, b) => a + b, 0) / stimmen.length;
+    score += durchschnitt * 4;
+  }
+
   return score;
 }
 
@@ -1434,6 +1443,19 @@ function RezepteView({ rezepte, setRezepte }) {
     setRezepte(updated); save("rezepte", updated);
   };
 
+  const bewerteRezept = (id, person, wert) => {
+    // wert: 1 (👍), -1 (👎), oder 0 (Bewertung entfernen wenn nochmal getippt)
+    const updated = rezepte.map(r => {
+      if (r.id !== id) return r;
+      const bisherige = (r.bewertungen || {})[person];
+      const neueWertung = bisherige === wert ? undefined : wert; // nochmal tippen = entfernen
+      const neueBewertungen = { ...(r.bewertungen || {}), [person]: neueWertung };
+      if (neueWertung === undefined) delete neueBewertungen[person];
+      return { ...r, bewertungen: neueBewertungen };
+    });
+    setRezepte(updated); save("rezepte", updated);
+  };
+
   return (
     <div>
       <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
@@ -1463,7 +1485,7 @@ function RezepteView({ rezepte, setRezepte }) {
           <h3 style={{ color: "#4d7c5a", margin: 0 }}>Unsere eigenen Rezepte ({eigeneRezepte.length})</h3>
         </div>
         <div className="rezepte-grid">
-          {eigeneRezepte.map(r => <RezeptKarte key={r.id} r={r} onDelete={() => löschen(r.id)} akzent="#4d7c5a" />)}
+          {eigeneRezepte.map(r => <RezeptKarte key={r.id} r={r} onDelete={() => löschen(r.id)} onRate={(person, wert) => bewerteRezept(r.id, person, wert)} akzent="#4d7c5a" />)}
           {eigeneRezepte.length === 0 && (
             <p style={{ color: "#b08968", gridColumn: "1/-1", fontSize: 14 }}>
               Noch keine eigenen Rezepte – füge eines über „+ Rezept hinzufügen" oder „Rezept per Foto" hinzu.
@@ -1478,7 +1500,7 @@ function RezepteView({ rezepte, setRezepte }) {
           <h3 style={{ color: "#c2410c", margin: 0 }}>Beliebte Familienrezepte ({beliebteRezepte.length})</h3>
         </div>
         <div className="rezepte-grid">
-          {beliebteRezepte.map(r => <RezeptKarte key={r.id} r={r} onDelete={() => löschen(r.id)} akzent="#c2410c" />)}
+          {beliebteRezepte.map(r => <RezeptKarte key={r.id} r={r} onDelete={() => löschen(r.id)} onRate={(person, wert) => bewerteRezept(r.id, person, wert)} akzent="#c2410c" />)}
           {beliebteRezepte.length === 0 && <p style={{ color: "#b08968", gridColumn: "1/-1", fontSize: 14 }}>Keine Rezepte gefunden.</p>}
         </div>
       </div>
@@ -1489,7 +1511,7 @@ function RezepteView({ rezepte, setRezepte }) {
           <h3 style={{ color: "#7c3aed", margin: 0 }}>Abenteuer-Rezepte der App</h3>
         </div>
         <div className="rezepte-grid">
-          {ABENTEUER_REZEPTE.map(r => <RezeptKarte key={r.id} r={r} readonly akzent="#7c3aed" />)}
+          {ABENTEUER_REZEPTE.map(r => <RezeptKarte key={r.id} r={r} readonly onRate={(person, wert) => bewerteRezept(r.id, person, wert)} akzent="#7c3aed" />)}
         </div>
       </div>
 
@@ -1561,9 +1583,15 @@ function tagFarben(tag) {
   return TAG_FARBEN[tag] || ["#7c5c42", "#f3e8da"];
 }
 
-function RezeptKarte({ r, onDelete, readonly, akzent }) {
+function RezeptKarte({ r, onDelete, readonly, akzent, onRate }) {
   const [offen, setOffen] = useState(false);
   const kartenAkzent = akzent || kategorieAkzent(r.kategorie);
+  const bewertungen = r.bewertungen || {};
+
+  // Durchschnittsscore: Summe / Anzahl Bewerter (fair, unabhängig von Familiengröße)
+  const stimmen = Object.values(bewertungen).filter(v => v !== undefined);
+  const durchschnitt = stimmen.length > 0 ? stimmen.reduce((a, b) => a + b, 0) / stimmen.length : 0;
+
   return (
     <div style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 6px 18px #a0703014", border: "1px solid #f3e4d4", position: "relative" }}>
       <div style={{ height: 5, background: kartenAkzent }} />
@@ -1583,6 +1611,37 @@ function RezeptKarte({ r, onDelete, readonly, akzent }) {
             return <span key={t} style={{ background: bg, color: fg, borderRadius: 999, fontSize: 11, padding: "2px 9px", fontWeight: 600 }}>{t}</span>;
           })}
         </div>
+
+        {/* Bewertungen pro Person */}
+        <div style={{ marginTop: 12, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+          {FAMILIE.map(person => {
+            const wert = bewertungen[person];
+            const farbe = farbeFuer(person);
+            return (
+              <div key={person} style={{ display: "flex", gap: 3, alignItems: "center" }}>
+                <span style={{ width: 18, height: 18, borderRadius: "50%", background: farbe, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
+                  {person[0]}
+                </span>
+                <button
+                  onClick={() => onRate?.(person, 1)}
+                  title={`${person}: gefällt mir`}
+                  style={{ background: wert === 1 ? farbe : "#f3e4d4", border: "none", borderRadius: 6, width: 24, height: 22, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .15s", padding: 0 }}
+                >👍</button>
+                <button
+                  onClick={() => onRate?.(person, -1)}
+                  title={`${person}: gefällt mir nicht`}
+                  style={{ background: wert === -1 ? farbe : "#f3e4d4", border: "none", borderRadius: 6, width: 24, height: 22, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .15s", padding: 0 }}
+                >👎</button>
+              </div>
+            );
+          })}
+          {stimmen.length > 0 && (
+            <span style={{ fontSize: 11, color: durchschnitt > 0 ? "#4d7c5a" : durchschnitt < 0 ? "#c2410c" : "#b08968", fontWeight: 700, marginLeft: 4 }}>
+              {durchschnitt > 0 ? "+" : ""}{Math.round(durchschnitt * 100)}%
+            </span>
+          )}
+        </div>
+
         <div style={{ display: "flex", gap: 12, marginTop: 10, alignItems: "center" }}>
           {r.link && <a href={r.link} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: kartenAkzent, fontWeight: 600 }}>Rezept öffnen</a>}
           <button onClick={() => setOffen(!offen)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "#b08968", padding: 0, fontWeight: 600 }}>
