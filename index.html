@@ -387,16 +387,28 @@ const DATEN_KEYS = ["rezepte", "vorlieben", "kalender", "wochenplan", "verlauf",
 // in das aktuelle Objekt-Format mit Mengen & Einheiten. Wird überall angewendet, wo Rezepte gesetzt werden
 // (initial, lokal geladen UND aus der Cloud), damit alte Cloud-Daten die App nicht mehr verfälschen.
 function migriereRezepte(liste) {
-  if (!Array.isArray(liste)) return liste;
+  if (!Array.isArray(liste)) return STARTER_REZEPTE;
+
   const aktuelleById = {};
   [...STARTER_REZEPTE, ...ABENTEUER_REZEPTE].forEach(r => { aktuelleById[r.id] = r; });
-  return liste.map(r => {
+
+  // Bestehende Rezepte migrieren (Zutaten-Format)
+  const migriert = liste.map(r => {
     if (!r || !Array.isArray(r.zutaten)) return r;
     const hatAlteZutaten = r.zutaten.some(z => typeof z === "string" || !z?.einheit || z?.menge == null);
     if (!hatAlteZutaten) return r;
     if (aktuelleById[r.id]) return { ...r, zutaten: aktuelleById[r.id].zutaten };
     return { ...r, zutaten: r.zutaten.map(z => (typeof z === "string") ? { name: z, menge: 1, einheit: "Portion" } : { name: z.name, menge: z.menge ?? 1, einheit: z.einheit || "Portion" }) };
   });
+
+  // Neue STARTER_REZEPTE und Brotbox-Rezepte ergänzen, die noch nicht in der gespeicherten Liste sind
+  const vorhandeneIds = new Set(migriert.map(r => r.id));
+  const fehlende = STARTER_REZEPTE.filter(r => !vorhandeneIds.has(r.id));
+  if (fehlende.length > 0) {
+    return [...migriert, ...fehlende];
+  }
+
+  return migriert;
 }
 
 
