@@ -1421,7 +1421,8 @@ function RezepteView({ rezepte, setRezepte }) {
     r.name.toLowerCase().includes(search.toLowerCase()) ||
     r.kategorie.toLowerCase().includes(search.toLowerCase())
   );
-  const eigeneRezepte = gefiltert.filter(r => !/^r\d+$/.test(r.id));
+  const eigeneRezepte   = gefiltert.filter(r => !/^r\d+$/.test(r.id) && !/^b\d+$/.test(r.id));
+  const brotboxRezepte  = gefiltert.filter(r => /^b\d+$/.test(r.id));
   const beliebteRezepte = gefiltert.filter(r => /^r\d+$/.test(r.id));
 
   const speichern = () => {
@@ -1502,6 +1503,17 @@ function RezepteView({ rezepte, setRezepte }) {
         <div className="rezepte-grid">
           {beliebteRezepte.map(r => <RezeptKarte key={r.id} r={r} onDelete={() => löschen(r.id)} onRate={(person, wert) => bewerteRezept(r.id, person, wert)} akzent="#c2410c" />)}
           {beliebteRezepte.length === 0 && <p style={{ color: "#b08968", gridColumn: "1/-1", fontSize: 14 }}>Keine Rezepte gefunden.</p>}
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+          <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#4d7c5a" }} />
+          <h3 style={{ color: "#4d7c5a", margin: 0 }}>Brotbox-Rezepte ({brotboxRezepte.length})</h3>
+        </div>
+        <div className="rezepte-grid">
+          {brotboxRezepte.map(r => <RezeptKarte key={r.id} r={r} onDelete={() => löschen(r.id)} onRate={(person, wert) => bewerteRezept(r.id, person, wert)} akzent="#4d7c5a" />)}
+          {brotboxRezepte.length === 0 && <p style={{ color: "#b08968", gridColumn: "1/-1", fontSize: 14 }}>Keine Brotbox-Rezepte gefunden.</p>}
         </div>
       </div>
 
