@@ -90,15 +90,25 @@
   .ks-tagspalte {
     flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 10px;
   }
+  .ks-zettel-wrap { position: relative; }
+  .ks-zettel-wrap::before, .ks-zettel-wrap::after {
+    content: ""; position: absolute; width: 34px; height: 15px; z-index: 5;
+    background: rgba(255,255,255,0.42);
+    box-shadow: inset 0 0 6px rgba(255,255,255,0.35), 0 1px 2px rgba(0,0,0,0.10);
+    border-left: 1px solid rgba(255,255,255,0.25); border-right: 1px solid rgba(255,255,255,0.25);
+    pointer-events: none;
+  }
+  .ks-zettel-wrap::before { top: -5px; left: 8px; transform: rotate(-24deg); }
+  .ks-zettel-wrap::after { bottom: -4px; right: 10px; transform: rotate(-24deg); }
   .ks-zettel {
     position: relative; cursor: pointer;
     -webkit-mask: var(--tex-img) center/100% 100% no-repeat; mask: var(--tex-img) center/100% 100% no-repeat;
-    filter: drop-shadow(3px 5px 6px rgba(0,0,0,0.30));
+    filter: drop-shadow(1px 2px 2.5px rgba(0,0,0,0.22));
     padding: 9px 10px 13px;
     transition: transform 0.12s ease, filter 0.12s ease;
   }
   .ks-zettel:hover {
-    filter: drop-shadow(4px 7px 9px rgba(0,0,0,0.38));
+    filter: drop-shadow(2px 4px 5px rgba(0,0,0,0.30));
     z-index: 6;
   }
   .ks-zettel .ks-color { position:absolute; inset:0; z-index:0; }
@@ -837,40 +847,42 @@ function KuehlschrankZettel({ tag, datum, mahlzeitName, tagFarbe, tagCol, mahlze
   const { up, down } = ksBewertung(mahlzeit);
   return (
     <div
-      className="ks-zettel"
-      onClick={() => onSlot(tag, mahlzeitName)}
-      style={{
-        "--tex-img": `url("${KS_TEX}")`,
-        transform: `rotate(${versatz.rot}deg) translate(${versatz.dx}px, ${versatz.dy}px)`,
-      }}
+      className="ks-zettel-wrap"
+      style={{ transform: `rotate(${versatz.rot}deg) translate(${versatz.dx}px, ${versatz.dy}px)` }}
     >
-      <div className="ks-color" style={{ background: tagFarbe }} />
-      <div className="ks-tex" />
-      <div className="ks-zettel-inhalt">
-        {istTagKopf && (
-          <div className="ks-tagkopf">
-            <span className="ks-tag" style={{ color: tagCol }}>{tag}</span>
-            <span className="ks-datum" style={{ color: tagCol }}>{datum?.slice(0, 5)}</span>
-          </div>
-        )}
-        <div className="ks-mahl-label">{mahlzeitName}</div>
-        <div className="ks-mahl-name">{mahlzeit.name}</div>
-        <div className="ks-praesenz" onClick={e => e.stopPropagation()}>
-          {FAMILIE.map(p => (
-            <span key={p} className="ks-init" title={anwesend.includes(p) ? `${p} isst mit` : `${p} abwesend`}
-              onClick={() => onTogglePerson(p, datum, mahlzeitName)}
-              style={anwesend.includes(p)
-                ? { background: farbeFuer(p), color: "#fff" }
-                : { background: "rgba(0,0,0,0.07)", color: "rgba(0,0,0,0.28)" }}>
-              {p.charAt(0).toUpperCase()}
-            </span>
-          ))}
-          {mahlzeit.id && (up > 0 || down > 0) && (
-            <span className="ks-thumbs" style={{ marginLeft: 4 }}>
-              {up > 0 && <span className="ks-thumb" title="Mag ich">👍{up}</span>}
-              {down > 0 && <span className="ks-thumb" title="Mag ich nicht">👎{down}</span>}
-            </span>
+      <div
+        className="ks-zettel"
+        onClick={() => onSlot(tag, mahlzeitName)}
+        style={{ "--tex-img": `url("${KS_TEX}")` }}
+      >
+        <div className="ks-color" style={{ background: tagFarbe }} />
+        <div className="ks-tex" />
+        <div className="ks-zettel-inhalt">
+          {istTagKopf && (
+            <div className="ks-tagkopf">
+              <span className="ks-tag" style={{ color: tagCol }}>{tag}</span>
+              <span className="ks-datum" style={{ color: tagCol }}>{datum?.slice(0, 5)}</span>
+            </div>
           )}
+          <div className="ks-mahl-label">{mahlzeitName}</div>
+          <div className="ks-mahl-name">{mahlzeit.name}</div>
+          <div className="ks-praesenz" onClick={e => e.stopPropagation()}>
+            {FAMILIE.map(p => (
+              <span key={p} className="ks-init" title={anwesend.includes(p) ? `${p} isst mit` : `${p} abwesend`}
+                onClick={() => onTogglePerson(p, datum, mahlzeitName)}
+                style={anwesend.includes(p)
+                  ? { background: farbeFuer(p), color: "#fff" }
+                  : { background: "rgba(0,0,0,0.07)", color: "rgba(0,0,0,0.28)" }}>
+                {p.charAt(0).toUpperCase()}
+              </span>
+            ))}
+            {mahlzeit.id && (up > 0 || down > 0) && (
+              <span className="ks-thumbs" style={{ marginLeft: 4 }}>
+                {up > 0 && <span className="ks-thumb" title="Mag ich">👍{up}</span>}
+                {down > 0 && <span className="ks-thumb" title="Mag ich nicht">👎{down}</span>}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </div>
