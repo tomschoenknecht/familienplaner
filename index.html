@@ -85,11 +85,13 @@
     width:38px; height:14px; background:rgba(255,255,255,0.5); border:0.5px solid rgba(255,255,255,0.6); }
   .ks-zettelgrid {
     position: relative; z-index: 2; display: flex; gap: 0.4%;
-    padding: 84px 1.6% 5% 1.6%; align-items: flex-start;
+    padding: 84px 1.6% 5% 1.6%; align-items: stretch;
   }
   .ks-tagspalte {
-    flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 10px;
+    flex: 1 1 0; min-width: 0; display: grid;
+    grid-template-rows: 116px 100px 100px 100px; row-gap: 8px;
   }
+  .ks-zettel-platzhalter { width: 100%; }
   .ks-zettel-wrap { position: relative; }
   .ks-zettel-wrap::before {
     content: ""; position: absolute; width: 34px; height: 15px; z-index: 5;
@@ -916,31 +918,33 @@ function KuehlschrankPlan({ weekDates, plan, anwesendAn, onSlot, onTogglePerson,
           <div className="ks-spruch"><span className="ks-spruch-tape" />{spruch}</div>
         ) : null}
         <div className="ks-zettelgrid">
-          {WOCHENTAGE.map((tag, i) => {
-            const gefuellt = MAHLZEITEN
-              .map((m, j) => ({ m, j, mahlzeit: plan[tag]?.[m] }))
-              .filter(x => x.mahlzeit);
-            return (
-              <div key={tag} className="ks-tagspalte">
-                {gefuellt.map((x, idx) => (
+          {WOCHENTAGE.map((tag, i) => (
+            <div key={tag} className="ks-tagspalte">
+              {MAHLZEITEN.map((m, j) => {
+                const mahlzeit = plan[tag]?.[m];
+                if (!mahlzeit) {
+                  // Platzhalter: hält die Reihe auf gleicher Höhe, unsichtbar
+                  return <div key={m} className="ks-zettel-platzhalter" aria-hidden="true" />;
+                }
+                return (
                   <KuehlschrankZettel
-                    key={x.m}
+                    key={m}
                     tag={tag}
                     datum={weekDates[i]}
-                    mahlzeitName={x.m}
+                    mahlzeitName={m}
                     tagFarbe={KS_FARBEN[i]}
                     tagCol={KS_TAGCOL[i]}
-                    mahlzeit={x.mahlzeit}
-                    anwesend={anwesendAn(tag, x.m)}
-                    istTagKopf={idx === 0}
-                    versatz={ksVersatz(i, x.j)}
+                    mahlzeit={mahlzeit}
+                    anwesend={anwesendAn(tag, m)}
+                    istTagKopf={j === 0}
+                    versatz={ksVersatz(i, j)}
                     onSlot={onSlot}
                     onTogglePerson={onTogglePerson}
                   />
-                ))}
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          ))}
         </div>
       </div>
     </div>
