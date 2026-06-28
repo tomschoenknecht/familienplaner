@@ -105,16 +105,22 @@
   .ks-zettel .ks-tex { position:absolute; inset:0; z-index:1; mix-blend-mode:multiply; opacity:0.55;
     background: var(--tex-img) center/100% 100% no-repeat; pointer-events:none; }
   .ks-zettel-inhalt { position: relative; z-index: 2; }
-  .ks-tagkopf { border-bottom: 1px solid rgba(0,0,0,0.13); padding-bottom: 2px; margin-bottom: 4px; }
-  .ks-tag { font-family:'Caveat',cursive; font-weight:700; font-size:20px; line-height:1; }
-  .ks-datum { font-family:'Caveat',cursive; font-size:13px; opacity:0.7; margin-left:5px; font-weight:600; }
-  .ks-mahl-label { font-family:'Caveat',cursive; font-size:13px; color:#8a857c; line-height:1; }
-  .ks-mahl-name { font-family:'Caveat',cursive; font-size:17px; color:#33302c; font-weight:600; line-height:1.1; min-height:17px; }
-  .ks-mahl-leer { font-family:'Caveat',cursive; font-size:16px; min-height:17px; }
-  .ks-praesenz { display:flex; gap:4px; margin-top:4px; align-items:center; flex-wrap:wrap; }
-  .ks-dot { width:11px; height:11px; border-radius:50%; cursor:pointer; }
+  .ks-tagkopf { border-bottom: 1px solid rgba(0,0,0,0.18); padding-bottom: 2px; margin-bottom: 4px; }
+  .ks-tag { font-family:'Caveat',cursive; font-weight:700; font-size:21px; line-height:1; }
+  .ks-datum { font-family:'Caveat',cursive; font-size:15px; opacity:1; margin-left:5px; font-weight:700; }
+  .ks-mahl-label { font-family:'Caveat',cursive; font-size:15px; font-weight:700; color:#6b6760; line-height:1; }
+  .ks-mahl-name { font-family:'Caveat',cursive; font-size:17px; color:#2b2824; font-weight:600; line-height:1.1; min-height:17px; }
+  .ks-praesenz { display:flex; gap:4px; margin-top:5px; align-items:center; flex-wrap:wrap; }
+  .ks-init { width:17px; height:17px; border-radius:50%; cursor:pointer; font-size:11px; font-weight:700;
+    display:inline-flex; align-items:center; justify-content:center; font-family:system-ui,sans-serif;
+    line-height:1; user-select:none; }
   .ks-thumbs { display:inline-flex; gap:5px; align-items:center; }
   .ks-thumb { font-family:'Caveat',cursive; font-size:13px; line-height:1; opacity:0.9; }
+  .ks-legende { display:flex; flex-wrap:wrap; gap:16px;
+    padding: 2px 4px 12px; justify-content:center; }
+  .ks-legende-eintrag { display:inline-flex; align-items:center; gap:5px;
+    font-family:system-ui,sans-serif; font-size:12px; font-weight:600; color:#5a544c; }
+  .ks-init-legende { cursor:default; }
   /* Mobil: pro Tag eine Spalte, horizontal scrollbar */
   @media (max-width: 760px) {
     .ks-zettelgrid { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-top: 64px; padding-bottom: 16px; }
@@ -848,24 +854,24 @@ function KuehlschrankZettel({ tag, datum, mahlzeitName, tagFarbe, tagCol, mahlze
           </div>
         )}
         <div className="ks-mahl-label">{mahlzeitName}</div>
-        {mahlzeit
-          ? <div className="ks-mahl-name">{mahlzeit.name}</div>
-          : <div className="ks-mahl-leer">&nbsp;</div>}
-        {mahlzeit && (
-          <div className="ks-praesenz" onClick={e => e.stopPropagation()}>
-            {FAMILIE.map(p => (
-              <span key={p} className="ks-dot" title={anwesend.includes(p) ? `${p} isst mit` : `${p} abwesend`}
-                onClick={() => onTogglePerson(p, datum, mahlzeitName)}
-                style={{ background: anwesend.includes(p) ? farbeFuer(p) : "rgba(0,0,0,0.13)" }} />
-            ))}
-            {mahlzeit.id && (up > 0 || down > 0) && (
-              <span className="ks-thumbs" style={{ marginLeft: 4 }}>
-                {up > 0 && <span className="ks-thumb" title="Mag ich">👍{up}</span>}
-                {down > 0 && <span className="ks-thumb" title="Mag ich nicht">👎{down}</span>}
-              </span>
-            )}
-          </div>
-        )}
+        <div className="ks-mahl-name">{mahlzeit.name}</div>
+        <div className="ks-praesenz" onClick={e => e.stopPropagation()}>
+          {FAMILIE.map(p => (
+            <span key={p} className="ks-init" title={anwesend.includes(p) ? `${p} isst mit` : `${p} abwesend`}
+              onClick={() => onTogglePerson(p, datum, mahlzeitName)}
+              style={anwesend.includes(p)
+                ? { background: farbeFuer(p), color: "#fff" }
+                : { background: "rgba(0,0,0,0.07)", color: "rgba(0,0,0,0.28)" }}>
+              {p.charAt(0).toUpperCase()}
+            </span>
+          ))}
+          {mahlzeit.id && (up > 0 || down > 0) && (
+            <span className="ks-thumbs" style={{ marginLeft: 4 }}>
+              {up > 0 && <span className="ks-thumb" title="Mag ich">👍{up}</span>}
+              {down > 0 && <span className="ks-thumb" title="Mag ich nicht">👎{down}</span>}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -873,31 +879,48 @@ function KuehlschrankZettel({ tag, datum, mahlzeitName, tagFarbe, tagCol, mahlze
 
 function KuehlschrankPlan({ weekDates, plan, anwesendAn, onSlot, onTogglePerson, spruch }) {
   return (
-    <div className="kuehlschrank" style={{ "--fridge-img": `url("${KS_FRIDGE}")` }}>
-      {spruch ? (
-        <div className="ks-spruch"><span className="ks-spruch-tape" />{spruch}</div>
-      ) : null}
-      <div className="ks-zettelgrid">
-        {WOCHENTAGE.map((tag, i) => (
-          <div key={tag} className="ks-tagspalte">
-            {MAHLZEITEN.map((m, j) => (
-              <KuehlschrankZettel
-                key={m}
-                tag={tag}
-                datum={weekDates[i]}
-                mahlzeitName={m}
-                tagFarbe={KS_FARBEN[i]}
-                tagCol={KS_TAGCOL[i]}
-                mahlzeit={plan[tag]?.[m]}
-                anwesend={anwesendAn(tag, m)}
-                istTagKopf={j === 0}
-                versatz={ksVersatz(i, j)}
-                onSlot={onSlot}
-                onTogglePerson={onTogglePerson}
-              />
-            ))}
-          </div>
+    <div>
+      <div className="ks-legende">
+        {FAMILIE.map(p => (
+          <span key={p} className="ks-legende-eintrag">
+            <span className="ks-init ks-init-legende" style={{ background: farbeFuer(p), color: "#fff" }}>
+              {p.charAt(0).toUpperCase()}
+            </span>
+            {p}
+          </span>
         ))}
+      </div>
+      <div className="kuehlschrank" style={{ "--fridge-img": `url("${KS_FRIDGE}")` }}>
+        {spruch ? (
+          <div className="ks-spruch"><span className="ks-spruch-tape" />{spruch}</div>
+        ) : null}
+        <div className="ks-zettelgrid">
+          {WOCHENTAGE.map((tag, i) => {
+            const gefuellt = MAHLZEITEN
+              .map((m, j) => ({ m, j, mahlzeit: plan[tag]?.[m] }))
+              .filter(x => x.mahlzeit);
+            return (
+              <div key={tag} className="ks-tagspalte">
+                {gefuellt.map((x, idx) => (
+                  <KuehlschrankZettel
+                    key={x.m}
+                    tag={tag}
+                    datum={weekDates[i]}
+                    mahlzeitName={x.m}
+                    tagFarbe={KS_FARBEN[i]}
+                    tagCol={KS_TAGCOL[i]}
+                    mahlzeit={x.mahlzeit}
+                    anwesend={anwesendAn(tag, x.m)}
+                    istTagKopf={idx === 0}
+                    versatz={ksVersatz(i, x.j)}
+                    onSlot={onSlot}
+                    onTogglePerson={onTogglePerson}
+                  />
+                ))}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
