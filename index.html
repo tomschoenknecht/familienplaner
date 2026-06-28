@@ -91,15 +91,15 @@
     flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 10px;
   }
   .ks-zettel-wrap { position: relative; }
-  .ks-zettel-wrap::before, .ks-zettel-wrap::after {
+  .ks-zettel-wrap::before {
     content: ""; position: absolute; width: 34px; height: 15px; z-index: 5;
+    top: -6px; left: var(--tape-left, 40%);
+    transform: translateX(-50%) rotate(var(--tape-rot, 0deg));
     background: rgba(255,255,255,0.42);
     box-shadow: inset 0 0 6px rgba(255,255,255,0.35), 0 1px 2px rgba(0,0,0,0.10);
     border-left: 1px solid rgba(255,255,255,0.25); border-right: 1px solid rgba(255,255,255,0.25);
     pointer-events: none;
   }
-  .ks-zettel-wrap::before { top: -5px; left: 8px; transform: rotate(-24deg); }
-  .ks-zettel-wrap::after { bottom: -4px; right: 10px; transform: rotate(-24deg); }
   .ks-zettel {
     position: relative; cursor: pointer;
     -webkit-mask: var(--tex-img) center/100% 100% no-repeat; mask: var(--tex-img) center/100% 100% no-repeat;
@@ -836,10 +836,15 @@ function ksVersatz(tagIdx, mahlIdx) {
     const x = Math.sin(seed * n) * 10000;
     return x - Math.floor(x);
   };
+  // Streifen-Neigung: unregelmäßig, mal gerade, mal links/rechts geneigt
+  const tapeRaw = (r(5.9) - 0.5) * 56;          // −28°..+28°
+  const tapeRot = Math.abs(tapeRaw) < 5 ? 0 : tapeRaw;  // kleine Werte = gerade
   return {
     rot: (r(1.3) - 0.5) * 13,        // −6.5°..+6.5°
     dx: (r(2.7) - 0.5) * 22,         // −11..+11 px
     dy: (r(4.1) - 0.5) * 26,         // −13..+13 px
+    tapeRot,                          // Neigung des Klebestreifens
+    tapeLeft: 18 + r(8.3) * 52,       // horizontale Position in % (18..70)
   };
 }
 
@@ -848,7 +853,11 @@ function KuehlschrankZettel({ tag, datum, mahlzeitName, tagFarbe, tagCol, mahlze
   return (
     <div
       className="ks-zettel-wrap"
-      style={{ transform: `rotate(${versatz.rot}deg) translate(${versatz.dx}px, ${versatz.dy}px)` }}
+      style={{
+        transform: `rotate(${versatz.rot}deg) translate(${versatz.dx}px, ${versatz.dy}px)`,
+        "--tape-rot": `${versatz.tapeRot}deg`,
+        "--tape-left": `${versatz.tapeLeft}%`,
+      }}
     >
       <div
         className="ks-zettel"
