@@ -1565,7 +1565,8 @@ function MahlzeitKarte({ mahlzeit, onClick, anwesend = [], onTogglePerson }) {
 function SlotEditor({ slot, plan, rezepte, onSave, onClose }) {
   const [search, setSearch] = useState("");
   const alleRezepte = [...rezepte, ...ABENTEUER_REZEPTE];
-  const gefiltert = alleRezepte.filter(r => r.name.toLowerCase().includes(search.toLowerCase()) || r.kategorie.toLowerCase().includes(search.toLowerCase()));
+  const sLower = search.toLowerCase();
+  const gefiltert = alleRezepte.filter(r => r.name.toLowerCase().includes(sLower) || r.kategorie.toLowerCase().includes(sLower) || (r.tags || []).some(t => t.toLowerCase().includes(sLower)));
   return (
     <Modal title={`${slot.m} am ${slot.tag} bearbeiten`} onClose={onClose}>
       <input placeholder="Rezept suchen…" value={search} onChange={e => setSearch(e.target.value)}
@@ -1633,9 +1634,11 @@ function RezepteView({ rezepte, setRezepte }) {
     }
   };
 
+  const sLower = search.toLowerCase();
   const gefiltert = rezepte.filter(r =>
-    r.name.toLowerCase().includes(search.toLowerCase()) ||
-    r.kategorie.toLowerCase().includes(search.toLowerCase())
+    r.name.toLowerCase().includes(sLower) ||
+    r.kategorie.toLowerCase().includes(sLower) ||
+    (r.tags || []).some(t => t.toLowerCase().includes(sLower))
   );
   const eigeneRezepte   = gefiltert.filter(r => !/^r\d+$/.test(r.id) && !/^b\d+$/.test(r.id));
   const brotboxRezepte  = gefiltert.filter(r => /^b\d+$/.test(r.id));
