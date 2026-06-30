@@ -1566,7 +1566,12 @@ function SlotEditor({ slot, plan, rezepte, onSave, onClose }) {
   const [search, setSearch] = useState("");
   const alleRezepte = [...rezepte, ...ABENTEUER_REZEPTE];
   const sLower = search.toLowerCase();
-  const gefiltert = alleRezepte.filter(r => r.name.toLowerCase().includes(sLower) || r.kategorie.toLowerCase().includes(sLower) || (r.tags || []).some(t => t.toLowerCase().includes(sLower)));
+  const gefiltert = alleRezepte.filter(r =>
+    r.name.toLowerCase().includes(sLower) ||
+    r.kategorie.toLowerCase().includes(sLower) ||
+    (r.tags || []).some(t => t.toLowerCase().includes(sLower)) ||
+    (r.abenteuer ? (r.abenteuer.toLowerCase().includes(sLower) || "abenteuer".includes(sLower)) : false)
+  );
   return (
     <Modal title={`${slot.m} am ${slot.tag} bearbeiten`} onClose={onClose}>
       <input placeholder="Rezept suchen…" value={search} onChange={e => setSearch(e.target.value)}
@@ -1635,14 +1640,16 @@ function RezepteView({ rezepte, setRezepte }) {
   };
 
   const sLower = search.toLowerCase();
-  const gefiltert = rezepte.filter(r =>
+  const passt = (r) =>
     r.name.toLowerCase().includes(sLower) ||
-    r.kategorie.toLowerCase().includes(sLower) ||
-    (r.tags || []).some(t => t.toLowerCase().includes(sLower))
-  );
+    (r.kategorie || "").toLowerCase().includes(sLower) ||
+    (r.tags || []).some(t => t.toLowerCase().includes(sLower)) ||
+    (r.abenteuer ? (r.abenteuer.toLowerCase().includes(sLower) || "abenteuer".includes(sLower)) : false);
+  const gefiltert = rezepte.filter(passt);
   const eigeneRezepte   = gefiltert.filter(r => !/^r\d+$/.test(r.id) && !/^b\d+$/.test(r.id));
   const brotboxRezepte  = gefiltert.filter(r => /^b\d+$/.test(r.id));
   const beliebteRezepte = gefiltert.filter(r => /^r\d+$/.test(r.id));
+  const abenteuerGefiltert = ABENTEUER_REZEPTE.filter(passt);
 
   const speichern = () => {
     if (!form.name) return;
@@ -1736,15 +1743,17 @@ function RezepteView({ rezepte, setRezepte }) {
         </div>
       </div>
 
-      <div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-          <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#7c3aed" }} />
-          <h3 style={{ color: "#7c3aed", margin: 0 }}>Abenteuer-Rezepte der App</h3>
+      {abenteuerGefiltert.length > 0 && (
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+            <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#7c3aed" }} />
+            <h3 style={{ color: "#7c3aed", margin: 0 }}>Abenteuer-Rezepte der App</h3>
+          </div>
+          <div className="rezepte-grid">
+            {abenteuerGefiltert.map(r => <RezeptKarte key={r.id} r={r} readonly onRate={(person, wert) => bewerteRezept(r.id, person, wert)} akzent="#7c3aed" />)}
+          </div>
         </div>
-        <div className="rezepte-grid">
-          {ABENTEUER_REZEPTE.map(r => <RezeptKarte key={r.id} r={r} readonly onRate={(person, wert) => bewerteRezept(r.id, person, wert)} akzent="#7c3aed" />)}
-        </div>
-      </div>
+      )}
 
       {neu && (
         <Modal title="Neues Rezept hinzufügen" onClose={() => setNeu(false)}>
