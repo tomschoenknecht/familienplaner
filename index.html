@@ -123,9 +123,9 @@
   .ks-mahl-label { font-family:'Caveat',cursive; font-size:15px; font-weight:700; color:#6b6760; line-height:1; }
   .ks-mahl-name { font-family:'Caveat',cursive; font-size:17px; color:#2b2824; font-weight:600; line-height:1.1; min-height:17px; }
   .ks-praesenz { display:flex; gap:4px; margin-top:5px; align-items:center; flex-wrap:wrap; }
-  .ks-init { width:17px; height:17px; border-radius:50%; cursor:pointer; font-size:11px; font-weight:700;
+  .ks-init { min-width:20px; height:17px; padding:0 4px; border-radius:9px; cursor:pointer; font-size:10px; font-weight:700;
     display:inline-flex; align-items:center; justify-content:center; font-family:system-ui,sans-serif;
-    line-height:1; user-select:none; }
+    line-height:1; user-select:none; letter-spacing:0.2px; }
   .ks-thumbs { display:inline-flex; gap:5px; align-items:center; }
   .ks-thumb { font-family:'Caveat',cursive; font-size:13px; line-height:1; opacity:0.9; }
   .ks-legende { display:flex; flex-wrap:wrap; gap:16px;
@@ -167,8 +167,40 @@ let avatarFarbenAktuell = {};
 function farbeFuer(person) {
   return avatarFarbenAktuell[person] || FARBEN[person] || "#c9a96e";
 }
+// Kürzel pro Person: erste zwei Buchstaben, bei Kollision weiter hochzählen (Je, Ju …)
+function personKuerzel(person, alle) {
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+  const zwei = n => cap(n.slice(0, 2));
+  const meins = zwei(person);
+  const kollision = alle.some(a => a !== person && zwei(a) === meins);
+  if (!kollision) return meins;
+  // Kollision: ersten Buchstaben + ersten abweichenden Buchstaben suchen
+  const andere = alle.filter(a => a !== person && a.charAt(0).toLowerCase() === person.charAt(0).toLowerCase());
+  for (let i = 1; i < person.length; i++) {
+    const kand = cap(person.charAt(0) + person.charAt(i));
+    if (!andere.some(a => a.length > i && a.slice(0, i).toLowerCase() === person.slice(0, i).toLowerCase() && cap(a.charAt(0) + a.charAt(i)) === kand)) {
+      return kand;
+    }
+  }
+  return meins;
+}
 const WOCHENTAGE = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
 const MAHLZEITEN = ["Frühstück", "Brotbox", "Mittagessen", "Abendessen"];
+
+const SPRUCH_VORSCHLAEGE = [
+  "Zusammen schmeckt's am besten!",
+  "Was auf den Tisch kommt, wird gegessen … meistens.",
+  "Liebe geht durch den Magen.",
+  "Heute schon zusammen gelacht?",
+  "Selbst gekocht ist halb gewonnen.",
+  "Eine Woche voller guter Mahlzeiten.",
+  "Gemeinsam essen, gemeinsam glücklich.",
+  "Der Kühlschrank ist voll, das Herz auch.",
+  "Gutes Essen, gute Laune.",
+  "Familienzeit ist die beste Zeit.",
+  "Wer kocht, wird geliebt.",
+  "Frisch, bunt und lecker durch die Woche.",
+];
 
 const MAHLZEIT_META = {
   "Frühstück":   { farbe: "#fdecd2", textfarbe: "#a05a2c" },
@@ -935,7 +967,7 @@ function KuehlschrankZettel({ tag, datum, mahlzeitName, tagFarbe, tagCol, mahlze
                 style={anwesend.includes(p)
                   ? { background: farbeFuer(p), color: "#fff" }
                   : { background: "rgba(0,0,0,0.07)", color: "rgba(0,0,0,0.28)" }}>
-                {p.charAt(0).toUpperCase()}
+                {personKuerzel(p, FAMILIE)}
               </span>
             ))}
             {mahlzeit.id && (up > 0 || down > 0) && (
@@ -958,7 +990,7 @@ function KuehlschrankPlan({ weekDates, plan, anwesendAn, onSlot, onTogglePerson,
         {FAMILIE.map(p => (
           <span key={p} className="ks-legende-eintrag">
             <span className="ks-init ks-init-legende" style={{ background: farbeFuer(p), color: "#fff" }}>
-              {p.charAt(0).toUpperCase()}
+              {personKuerzel(p, FAMILIE)}
             </span>
             {p}
           </span>
@@ -1009,10 +1041,22 @@ function WochenplanView({ wochenplan, setWochenplan, rezepte, vorlieben, kalende
   const [generating, setGenerating] = useState(false);
   const [editSlot, setEditSlot] = useState(null);
   const [einkaufsliste, setEinkaufsliste] = useState(null);
+  const [sprueche, setSprueche] = useState(() => load("sprueche", {}));
+  const [spruchEdit, setSpruchEdit] = useState(false);
 
   const weekDates = getWeekDates(weekOffset);
   const weekKey = weekDates[0];
   const plan = wochenplan[weekKey] || {};
+  const spruch = sprueche[weekKey] || "";
+
+  const setzeSpruch = (text) => {
+    setSprueche(prev => { const n = { ...prev, [weekKey]: text }; save("sprueche", n); return n; });
+  };
+  const zufallsSpruch = () => {
+    const rest = SPRUCH_VORSCHLAEGE.filter(s => s !== spruch);
+    const wahl = rest[Math.floor(Math.random() * rest.length)] || SPRUCH_VORSCHLAEGE[0];
+    setzeSpruch(wahl);
+  };
 
   const anwesendAn = (tag, mahlzeit) => {
     const datum = weekDates[WOCHENTAGE.indexOf(tag)];
@@ -1356,12 +1400,33 @@ function WochenplanView({ wochenplan, setWochenplan, rezepte, vorlieben, kalende
           <p>Klicke auf „Wochenplan generieren" um loszulegen!</p>
         </div>
       ) : (<>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+          {spruchEdit ? (
+            <>
+              <input
+                value={spruch}
+                onChange={e => setzeSpruch(e.target.value)}
+                placeholder="Euer Wochenspruch…"
+                maxLength={60}
+                autoFocus
+                style={{ ...inputStyle, maxWidth: 320, marginBottom: 0, fontFamily: "'Caveat', cursive", fontSize: 17 }}
+              />
+              <button onClick={zufallsSpruch} title="Vorschlag" style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #e0c9a8", background: "#fff7ec", color: "#8a5a2c", cursor: "pointer", fontWeight: 600 }}>Vorschlag</button>
+              <button onClick={() => setSpruchEdit(false)} style={{ padding: "8px 12px", borderRadius: 8, border: "none", background: "#5a8a5f", color: "#fff", cursor: "pointer", fontWeight: 600 }}>Fertig</button>
+            </>
+          ) : (
+            <button onClick={() => setSpruchEdit(true)} style={{ padding: "6px 14px", borderRadius: 8, border: "1px dashed #cbb48f", background: "transparent", color: "#8a6a42", cursor: "pointer", fontFamily: "'Caveat', cursive", fontSize: 16 }}>
+              {spruch ? `„${spruch}" ✎` : "+ Wochenspruch hinzufügen"}
+            </button>
+          )}
+        </div>
         <KuehlschrankPlan
           weekDates={weekDates}
           plan={plan}
           anwesendAn={anwesendAn}
           onSlot={(tag, m) => setEditSlot({ tag, m })}
           onTogglePerson={(person, datum, m) => togglePersonAnwesenheit(person, datum, m)}
+          spruch={spruch}
         />
       </>)}
 
