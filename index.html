@@ -548,7 +548,7 @@ let _sb = null;            // Supabase-Client
 let _household = null;     // Haushalts-Code
 let _channel = null;       // Realtime-Channel
 let _libPromise = null;    // Lade-Promise der Bibliothek
-const DATEN_KEYS = ["rezepte", "vorlieben", "kalender", "wochenplan", "verlauf", "avatarFarben", "familie"];
+const DATEN_KEYS = ["rezepte", "vorlieben", "kalender", "wochenplan", "verlauf", "avatarFarben", "familie", "sprueche"];
 
 // Migriert Rezepte mit altem/unvollständigem Zutaten-Format (Strings oder Objekte ohne Einheit/Menge)
 // in das aktuelle Objekt-Format mit Mengen & Einheiten. Wird überall angewendet, wo Rezepte gesetzt werden
@@ -1036,12 +1036,11 @@ function KuehlschrankPlan({ weekDates, plan, anwesendAn, onSlot, onTogglePerson,
 
 // ── Wochenplan ────────────────────────────────────────────────────────────────
 
-function WochenplanView({ wochenplan, setWochenplan, rezepte, vorlieben, kalender, setKalender, verlauf, setVerlauf }) {
+function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, rezepte, vorlieben, kalender, setKalender, verlauf, setVerlauf }) {
   const [weekOffset, setWeekOffset] = useState(1);
   const [generating, setGenerating] = useState(false);
   const [editSlot, setEditSlot] = useState(null);
   const [einkaufsliste, setEinkaufsliste] = useState(null);
-  const [sprueche, setSprueche] = useState(() => load("sprueche", {}));
   const [spruchEdit, setSpruchEdit] = useState(false);
 
   const weekDates = getWeekDates(weekOffset);
@@ -2677,6 +2676,7 @@ function App() {
   const [vorlieben, setVorlieben] = useState(() => load("vorlieben", DEFAULT_VORLIEBEN));
   const [kalender, setKalender] = useState(() => load("kalender", {}));
   const [wochenplan, setWochenplan] = useState(() => load("wochenplan", {}));
+  const [sprueche, setSpruecheRaw] = useState(() => load("sprueche", {}));
   const [verlauf, setVerlauf] = useState(() => load("verlauf", []));
   const [avatarFarben, setAvatarFarbenRaw] = useState(() => load("avatarFarben", {}));
   // avatarFarbenAktuell (Modul-Variable) immer synchron zum State halten, damit Komponenten
@@ -2715,7 +2715,7 @@ function App() {
     // Eigene Echo-Updates kurz nach dem Senden ignorieren (verhindert "Zurückspringen" beim Tippen, v.a. auf Mobilgeräten)
     const seit = Date.now() - (_zuletztGesendet[key] || 0);
     if (seit < 2500) return;
-    const setterMap = { rezepte: setRezepte, vorlieben: setVorlieben, kalender: setKalender, wochenplan: setWochenplan, verlauf: setVerlauf, avatarFarben: setAvatarFarbenRaw, familie: (v) => { FAMILIE = v; setFamilieRaw(v); } };
+    const setterMap = { rezepte: setRezepte, vorlieben: setVorlieben, kalender: setKalender, wochenplan: setWochenplan, verlauf: setVerlauf, avatarFarben: setAvatarFarbenRaw, sprueche: setSpruecheRaw, familie: (v) => { FAMILIE = v; setFamilieRaw(v); } };
     const setter = setterMap[key];
     if (setter) {
       const wert = (key === "rezepte") ? migriereRezepte(value) : value;
@@ -2742,7 +2742,7 @@ function App() {
     }
     let aktiv = true;
     setSyncStatus("connecting");
-    const aktuelleDaten = { rezepte, vorlieben, kalender, wochenplan, verlauf, avatarFarben };
+    const aktuelleDaten = { rezepte, vorlieben, kalender, wochenplan, verlauf, avatarFarben, sprueche };
     const verbindungsDaten = { url: SUPABASE_URL, key: SUPABASE_ANON_KEY, household: syncConfig.household };
 
     connectSync(verbindungsDaten, applyRemote)
@@ -2815,7 +2815,7 @@ function App() {
 
       {/* Content */}
       <div className="main-content">
-        {tab === "wochenplan" && <WochenplanView wochenplan={wochenplan} setWochenplan={setWochenplan} rezepte={rezepte} vorlieben={vorlieben} kalender={kalender} setKalender={setKalender} verlauf={verlauf} setVerlauf={setVerlauf} />}
+        {tab === "wochenplan" && <WochenplanView wochenplan={wochenplan} setWochenplan={setWochenplan} sprueche={sprueche} setSprueche={setSpruecheRaw} rezepte={rezepte} vorlieben={vorlieben} kalender={kalender} setKalender={setKalender} verlauf={verlauf} setVerlauf={setVerlauf} />}
         {tab === "rezepte" && <RezepteView rezepte={rezepte} setRezepte={setRezepte} />}
         {tab === "vorlieben" && <VorliebenView vorlieben={vorlieben} setVorlieben={setVorlieben} avatarFarben={avatarFarben} setAvatarFarben={setAvatarFarben} />}
         {tab === "kalender" && <KalenderView kalender={kalender} setKalender={setKalender} />}
