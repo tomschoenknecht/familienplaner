@@ -270,19 +270,24 @@ const SUPERMARKT_KATEGORIEN = {
     "Apfel","Banane","Erdbeeren","Avocado","Mais","Erbsen","Kichererbsen","Pilze","Champignons",
     "Frühlingszwiebeln","Kürbis","Hokkaido-Kürbis","Petersilie","Basilikum","Schnittlauch","Dill",
     "Koriander","Apfelmus","Oliven","Kapern","Pickles","Große Kartoffeln",
+    "Aubergine","Babyspinat","Blattsalat","Blumenkohl","Cherrytomaten","Grünkohl","Heidelbeeren",
+    "Himbeeren","Karotten","Kresse","Mango","Minze","Rote Bete","Rote Zwiebel","Rucola","Wirsing",
+    "Rosmarin","Thymian",
   ],
   "Fleisch & Wurst": [
     "Hackfleisch","Hähnchenbrust","Hähnchenfleisch","Kalbsschnitzel","Speck","Salami","Würstchen",
     "Rindfleisch","Hühnchen","Lammfleisch","Putenbrust","Chorizo","Pancetta",
+    "Bio-Hähnchenbrust","Bio-Putenbrust","Bio-Rindfleisch",
   ],
   "Fisch & Meeresfrüchte": [
     "Lachsfilet","Fischstäbchen","Thunfisch","Garnelen","Kabeljau","Forelle","Hering","Sardinen",
-    "Räucherlachs","Meeresfrüchte",
+    "Räucherlachs","Meeresfrüchte","Bio-Forelle",
   ],
   "Kühlregal": [
     "Butter","Milch","Sahne","Crème fraîche","Joghurt","Mozzarella","Parmesan","Cheddar",
     "Gouda","Feta","Ricotta","Emmentaler","Sauerrahm","Schmand","Frischkäse","Quark","Remoulade",
     "Mayonnaise","Senf-Mayo-Dressing","Schlagsahne",
+    "Bio-Eier","Hafermilch","Käse","Naturjoghurt","Ziegenkäse","Tofu","Edamame",
   ],
   "Tiefkühlkost": [
     "Pommes","Tiefkühl-Spinat","Tiefkühl-Erbsen","Tiefkühl-Mais","Fischstäbchen (TK)",
@@ -291,6 +296,7 @@ const SUPERMARKT_KATEGORIEN = {
   "Backwaren & Brot": [
     "Toastbrot","Brötchen","Baguette","Brot","Laugenbrezel","Fladenbrot","Tortillas","Taco-Schalen",
     "Hotdog-Brötchen","Burgerbrötchen","Hefeteig","Pizzateig","Pita","Filoteig",
+    "Vollkornbrot","Vollkorn-Tortillas",
   ],
   "Trockenwaren & Konserven": [
     "Spaghetti","Penne","Farfalle","Fusilli","Lasagneplatten","Maccaroni","Cannelloni","Nudeln",
@@ -298,6 +304,10 @@ const SUPERMARKT_KATEGORIEN = {
     "Muskat","Cumin","Curry","Oregano","Zimt","Paprikapulver","Gewürze","Hefe","Backpulver",
     "Semmelbrösel","Tomaten (Dose)","Passata","Tomatensauce","Salsa","Thunfisch","Kokosmilch",
     "Brühe","Linsen","Rote Linsen","Gochujang","Sojasoße","Sesamöl","Olivenöl","Öl","Sternanis",
+    "Berglinsen","Currypulver","Kurkuma","Kümmel","Quinoa","Hirse","Vollkorn-Couscous","Vollkorn-Müsli",
+    "Vollkorn-Risottoreis","Vollkornmehl","Vollkornnudeln","Sojasauce","Sesam","Granola","Chiasamen",
+    "Leinsamen","Kokosflocken","Mandeln","Walnüsse","Pinienkerne","Kürbiskerne","Sonnenblumenkerne",
+    "Tahini","Kidneybohnen",
   ],
   "Saucen & Gewürze": [
     "Ketchup","Senf","Worcestershiresauce","Tabasco","Balsamico","Ahornsirup","Okonomiyaki-Sauce",
@@ -318,6 +328,27 @@ function kategorieVonZutat(name) {
     if (liste.some(l => z.includes(l.toLowerCase()) || l.toLowerCase().includes(z))) return kat;
   }
   return "Sonstiges";
+}
+
+// Stückige Einheiten, die man nur ganz kauft (keine krummen Bruchteile in der Einkaufsliste)
+const STUECK_EINHEITEN = ["Stück", "Bund", "Zehe", "Päckchen", "Dose", "Stange", "Scheibe", "Schale", "Portion"];
+
+// Deutsche Zahl: max. 2 Nachkommastellen, Punkt → Komma, keine überflüssigen Nullen
+function deZahl(n) {
+  const gerundet = Math.round(n * 100) / 100;
+  return String(gerundet).replace(".", ",");
+}
+
+// Menge für die Anzeige glätten: g/ml ≥ 1000 → kg/l, Stückeinheiten ganzzahlig
+function formatMenge(menge, einheit) {
+  if (menge == null || !einheit) return "";
+  if (einheit === "g" && menge >= 1000) return `${deZahl(menge / 1000)} kg`;
+  if (einheit === "ml" && menge >= 1000) return `${deZahl(menge / 1000)} l`;
+  if (STUECK_EINHEITEN.includes(einheit)) {
+    const ganz = Math.max(1, Math.ceil(menge));
+    return `${ganz} ${einheit}`;
+  }
+  return `${deZahl(menge)} ${einheit}`;
 }
 
 const STARTER_REZEPTE = [
@@ -548,7 +579,7 @@ let _sb = null;            // Supabase-Client
 let _household = null;     // Haushalts-Code
 let _channel = null;       // Realtime-Channel
 let _libPromise = null;    // Lade-Promise der Bibliothek
-const DATEN_KEYS = ["rezepte", "vorlieben", "kalender", "wochenplan", "verlauf", "avatarFarben", "familie", "sprueche"];
+const DATEN_KEYS = ["rezepte", "vorlieben", "kalender", "wochenplan", "verlauf", "avatarFarben", "familie", "sprueche", "rueckblicke"];
 
 // Migriert Rezepte mit altem/unvollständigem Zutaten-Format (Strings oder Objekte ohne Einheit/Menge)
 // in das aktuelle Objekt-Format mit Mengen & Einheiten. Wird überall angewendet, wo Rezepte gesetzt werden
@@ -1036,7 +1067,7 @@ function KuehlschrankPlan({ weekDates, plan, anwesendAn, onSlot, onTogglePerson,
 
 // ── Wochenplan ────────────────────────────────────────────────────────────────
 
-function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, rezepte, vorlieben, kalender, setKalender, verlauf, setVerlauf }) {
+function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, rueckblicke, setRueckblicke, rezepte, vorlieben, kalender, setKalender, verlauf, setVerlauf }) {
   const [weekOffset, setWeekOffset] = useState(1);
   const [generating, setGenerating] = useState(false);
   const [editSlot, setEditSlot] = useState(null);
@@ -1055,6 +1086,31 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, reze
     const rest = SPRUCH_VORSCHLAEGE.filter(s => s !== spruch);
     const wahl = rest[Math.floor(Math.random() * rest.length)] || SPRUCH_VORSCHLAEGE[0];
     setzeSpruch(wahl);
+  };
+
+  // Wochenrückblick: nur für vergangene Wochen mit vorhandenem Plan
+  const istVergangeneWoche = weekOffset < 1;
+  const rueckblickNotiz = rueckblicke[weekKey] || "";
+  const setzeRueckblickNotiz = (text) => {
+    setRueckblicke(prev => { const n = { ...prev, [weekKey]: text }; save("rueckblicke", n); return n; });
+  };
+  const rueckblickDaten = () => {
+    let anzahl = 0;
+    const bewertet = []; // { name, up, down }
+    const katZaehler = {};
+    Object.values(plan).forEach(tagObj => {
+      Object.values(tagObj || {}).forEach(m => {
+        if (!m?.name) return;
+        anzahl++;
+        if (m.kategorie) katZaehler[m.kategorie] = (katZaehler[m.kategorie] || 0) + 1;
+        const { up, down } = ksBewertung(m);
+        if (up > 0 || down > 0) bewertet.push({ name: m.name, up, down });
+      });
+    });
+    const tops = bewertet.filter(x => x.up > 0).sort((a, b) => b.up - a.up).slice(0, 3);
+    const flops = bewertet.filter(x => x.down > 0).sort((a, b) => b.down - a.down).slice(0, 3);
+    const topKat = Object.entries(katZaehler).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    return { anzahl, tops, flops, topKat };
   };
 
   const anwesendAn = (tag, mahlzeit) => {
@@ -1205,12 +1261,17 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, reze
         }
       });
     });
-    // Mengen sinnvoll runden
+    // Mengen sinnvoll runden/glätten
     Object.values(zutatenMap).forEach(item => {
       if (item.einheit === "g" || item.einheit === "ml") {
-        item.menge = Math.round(item.menge / 5) * 5; // auf 5er runden
+        // kleine Mengen auf 5er, größere auf 10er runden
+        const schritt = item.menge >= 100 ? 10 : 5;
+        item.menge = Math.round(item.menge / schritt) * schritt;
+      } else if (STUECK_EINHEITEN.includes(item.einheit)) {
+        // Stückige Einheiten immer aufrunden – man kauft nur ganze
+        item.menge = Math.max(1, Math.ceil(item.menge));
       } else {
-        item.menge = Math.round(item.menge * 4) / 4; // auf Viertel runden (z.B. 0.25 Zwiebel)
+        item.menge = Math.round(item.menge * 4) / 4; // sonst auf Viertel
         if (item.menge < 0.25 && item.menge > 0) item.menge = 0.25;
       }
     });
@@ -1315,7 +1376,7 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, reze
             <div style="display:flex; align-items:center; gap:7px; padding:4px 0; font-size:12.5px; color:#3b2412; border-bottom:1px solid #f7efe5;">
               <span style="width:12px; height:12px; border:1.5px solid #c2a880; border-radius:3px; display:inline-block; flex-shrink:0;"></span>
               <span style="flex:1;">${item.zutat}</span>
-              <span style="color:#a05a2c; font-weight:700; font-size:11px;">${item.menge} ${item.einheit}</span>
+              <span style="color:#a05a2c; font-weight:700; font-size:11px;">${formatMenge(item.menge, item.einheit)}</span>
             </div>
           `).join("")}
         </div>`;
@@ -1399,6 +1460,47 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, reze
           <p>Klicke auf „Wochenplan generieren" um loszulegen!</p>
         </div>
       ) : (<>
+        {istVergangeneWoche && (() => {
+          const rb = rueckblickDaten();
+          return (
+            <div style={{ background: "#fdf6ec", border: "1px solid #e8d4b8", borderRadius: 14, padding: "16px 20px", marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <span style={{ fontSize: 20 }}>📋</span>
+                <h3 style={{ margin: 0, color: "#8a5a2c" }}>Wochenrückblick</h3>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 12, color: "#a98a5c", fontWeight: 700, marginBottom: 4 }}>GEPLANT</div>
+                  <div style={{ fontSize: 15 }}>{rb.anzahl} Mahlzeiten</div>
+                  {rb.topKat.length > 0 && (
+                    <div style={{ fontSize: 13, color: "#7c6a4c", marginTop: 4 }}>
+                      Meist: {rb.topKat.map(([k, n]) => `${k} (${n})`).join(", ")}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, color: "#2f8a4c", fontWeight: 700, marginBottom: 4 }}>👍 KAM GUT AN</div>
+                  {rb.tops.length > 0
+                    ? rb.tops.map(t => <div key={t.name} style={{ fontSize: 14 }}>{t.name} <span style={{ color: "#2f8a4c", fontWeight: 700 }}>×{t.up}</span></div>)
+                    : <div style={{ fontSize: 13, color: "#b0a082" }}>Noch nicht bewertet</div>}
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, color: "#b04a2c", fontWeight: 700, marginBottom: 4 }}>👎 EHER NICHT</div>
+                  {rb.flops.length > 0
+                    ? rb.flops.map(t => <div key={t.name} style={{ fontSize: 14 }}>{t.name} <span style={{ color: "#b04a2c", fontWeight: 700 }}>×{t.down}</span></div>)
+                    : <div style={{ fontSize: 13, color: "#b0a082" }}>Nichts Negatives</div>}
+                </div>
+              </div>
+              <textarea
+                value={rueckblickNotiz}
+                onChange={e => setzeRueckblickNotiz(e.target.value)}
+                placeholder="Notiz zur Woche – was blieb übrig, was war top, was nächste Woche anders?"
+                rows={2}
+                style={{ ...inputStyle, marginBottom: 0, resize: "vertical", fontSize: 14 }}
+              />
+            </div>
+          );
+        })()}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
           {spruchEdit ? (
             <>
@@ -1478,7 +1580,7 @@ function EinkaufslistePanel({ liste, weekDates, onClose, onToggle, onAdd, onRemo
               <div style="display:flex; align-items:center; gap:8px; padding:5px 0; font-size:13px; color:#3b2412;">
                 <span style="width:13px; height:13px; border:1.5px solid #c2a880; border-radius:3px; display:inline-block; flex-shrink:0;"></span>
                 <span style="flex:1;">${item.zutat}</span>
-                ${(item.menge != null && item.einheit) ? `<span style="color:#a05a2c; font-weight:700; font-size:11px;">${item.menge} ${item.einheit}</span>` : ""}
+                ${(item.menge != null && item.einheit) ? `<span style="color:#a05a2c; font-weight:700; font-size:11px;">${formatMenge(item.menge, item.einheit)}</span>` : ""}
               </div>
             `).join("")}
           </div>
@@ -1544,7 +1646,7 @@ function EinkaufslistePanel({ liste, weekDates, onClose, onToggle, onAdd, onRemo
                     <span style={{ fontSize: 14, flex: 1 }}>{item.zutat}</span>
                     {(item.menge != null && item.einheit) && (
                       <span style={{ fontSize: 12, fontWeight: 700, color: item.abgehakt ? "#cbd5e1" : "#059669", background: item.abgehakt ? "#f1f5f9" : "#dcfce7", borderRadius: 99, padding: "1px 7px", flexShrink: 0 }}>
-                        {item.menge} {item.einheit}
+                        {formatMenge(item.menge, item.einheit)}
                       </span>
                     )}
                     <button onClick={(e) => { e.preventDefault(); onRemove(kat, item.id); }} title="Entfernen" style={{ background: "none", border: "none", color: "#cbb89c", cursor: "pointer", fontSize: 14, fontWeight: 700, padding: "0 2px", flexShrink: 0 }}>×</button>
@@ -2677,6 +2779,7 @@ function App() {
   const [kalender, setKalender] = useState(() => load("kalender", {}));
   const [wochenplan, setWochenplan] = useState(() => load("wochenplan", {}));
   const [sprueche, setSpruecheRaw] = useState(() => load("sprueche", {}));
+  const [rueckblicke, setRueckblickeRaw] = useState(() => load("rueckblicke", {}));
   const [verlauf, setVerlauf] = useState(() => load("verlauf", []));
   const [avatarFarben, setAvatarFarbenRaw] = useState(() => load("avatarFarben", {}));
   // avatarFarbenAktuell (Modul-Variable) immer synchron zum State halten, damit Komponenten
@@ -2715,7 +2818,7 @@ function App() {
     // Eigene Echo-Updates kurz nach dem Senden ignorieren (verhindert "Zurückspringen" beim Tippen, v.a. auf Mobilgeräten)
     const seit = Date.now() - (_zuletztGesendet[key] || 0);
     if (seit < 2500) return;
-    const setterMap = { rezepte: setRezepte, vorlieben: setVorlieben, kalender: setKalender, wochenplan: setWochenplan, verlauf: setVerlauf, avatarFarben: setAvatarFarbenRaw, sprueche: setSpruecheRaw, familie: (v) => { FAMILIE = v; setFamilieRaw(v); } };
+    const setterMap = { rezepte: setRezepte, vorlieben: setVorlieben, kalender: setKalender, wochenplan: setWochenplan, verlauf: setVerlauf, avatarFarben: setAvatarFarbenRaw, sprueche: setSpruecheRaw, rueckblicke: setRueckblickeRaw, familie: (v) => { FAMILIE = v; setFamilieRaw(v); } };
     const setter = setterMap[key];
     if (setter) {
       const wert = (key === "rezepte") ? migriereRezepte(value) : value;
@@ -2742,7 +2845,7 @@ function App() {
     }
     let aktiv = true;
     setSyncStatus("connecting");
-    const aktuelleDaten = { rezepte, vorlieben, kalender, wochenplan, verlauf, avatarFarben, sprueche };
+    const aktuelleDaten = { rezepte, vorlieben, kalender, wochenplan, verlauf, avatarFarben, sprueche, rueckblicke };
     const verbindungsDaten = { url: SUPABASE_URL, key: SUPABASE_ANON_KEY, household: syncConfig.household };
 
     connectSync(verbindungsDaten, applyRemote)
@@ -2815,7 +2918,7 @@ function App() {
 
       {/* Content */}
       <div className="main-content">
-        {tab === "wochenplan" && <WochenplanView wochenplan={wochenplan} setWochenplan={setWochenplan} sprueche={sprueche} setSprueche={setSpruecheRaw} rezepte={rezepte} vorlieben={vorlieben} kalender={kalender} setKalender={setKalender} verlauf={verlauf} setVerlauf={setVerlauf} />}
+        {tab === "wochenplan" && <WochenplanView wochenplan={wochenplan} setWochenplan={setWochenplan} sprueche={sprueche} setSprueche={setSpruecheRaw} rueckblicke={rueckblicke} setRueckblicke={setRueckblickeRaw} rezepte={rezepte} vorlieben={vorlieben} kalender={kalender} setKalender={setKalender} verlauf={verlauf} setVerlauf={setVerlauf} />}
         {tab === "rezepte" && <RezepteView rezepte={rezepte} setRezepte={setRezepte} />}
         {tab === "vorlieben" && <VorliebenView vorlieben={vorlieben} setVorlieben={setVorlieben} avatarFarben={avatarFarben} setAvatarFarben={setAvatarFarben} />}
         {tab === "kalender" && <KalenderView kalender={kalender} setKalender={setKalender} />}
