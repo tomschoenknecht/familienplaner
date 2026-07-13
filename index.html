@@ -670,6 +670,17 @@ async function pushOne(key, value) {
     .upsert({ household: _household, key, value, updated_at: new Date().toISOString() }, { onConflict: "household,key" });
 }
 
+// Keep-Alive: minimaler DB-Zugriff bei jedem App-Start, damit Supabase das
+// Projekt nicht wegen Inaktivität pausiert (Free-Tier: Pause nach 7 Tagen ohne Aktivität).
+// Läuft unabhängig vom Haushalt und still im Hintergrund; Fehler werden ignoriert.
+async function keepAlive() {
+  try {
+    const lib = await loadSupabaseLib();
+    const sb = _sb || lib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    await sb.from("familienplaner_data").select("key").limit(1);
+  } catch {}
+}
+
 // save() schreibt immer lokal und – falls verbunden – in die Cloud
 const _zuletztGesendet = {}; // key -> timestamp, um eigene Echo-Updates kurz zu ignorieren
 const save = (key, val) => {
@@ -2829,6 +2840,10 @@ function App() {
   }, []);
 
   // Sicherheits-Timeout: falls Sync nach 8s nicht reagiert, Ladeansicht trotzdem beenden
+  // Keep-Alive: einmal beim App-Start die Datenbank berühren, damit Supabase
+  // das Projekt nicht wegen Inaktivität pausiert.
+  useEffect(() => { keepAlive(); }, []);
+
   useEffect(() => {
     if (!initialSyncPending) return;
     const t = setTimeout(() => setInitialSyncPending(false), 8000);
