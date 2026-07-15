@@ -202,6 +202,26 @@ const SPRUCH_VORSCHLAEGE = [
   "Frisch, bunt und lecker durch die Woche.",
 ];
 
+// Saisonales Obst & Gemüse pro Monat (0=Januar … 11=Dezember) plus passende Rezept-Suchbegriffe
+const SAISON = [
+  { obst: ["Äpfel", "Birnen", "Orangen"], gemuese: ["Grünkohl", "Feldsalat", "Rote Bete", "Wirsing"], tipp: "Deftige Eintöpfe und Grünkohl haben jetzt Hochsaison." },
+  { obst: ["Äpfel", "Birnen", "Orangen"], gemuese: ["Feldsalat", "Lauch", "Rosenkohl", "Chicorée"], tipp: "Wintergemüse wie Lauch und Rosenkohl sind jetzt am besten." },
+  { obst: ["Äpfel", "Rhabarber"], gemuese: ["Bärlauch", "Spinat", "Radieschen", "Frühlingszwiebeln"], tipp: "Der erste Bärlauch und frischer Spinat läuten den Frühling ein." },
+  { obst: ["Rhabarber", "Erdbeeren"], gemuese: ["Spargel", "Radieschen", "Spinat", "Rucola"], tipp: "Spargelzeit! Dazu passt frischer Salat." },
+  { obst: ["Erdbeeren", "Rhabarber"], gemuese: ["Spargel", "Kohlrabi", "Mangold", "Erbsen"], tipp: "Spargel und Erdbeeren – der Mai schmeckt am besten frisch." },
+  { obst: ["Erdbeeren", "Kirschen", "Heidelbeeren"], gemuese: ["Zucchini", "Erbsen", "Bohnen", "Salat"], tipp: "Beerenzeit beginnt – ideal für Müsli und Bowls." },
+  { obst: ["Kirschen", "Heidelbeeren", "Himbeeren", "Aprikosen"], gemuese: ["Tomaten", "Zucchini", "Paprika", "Gurken"], tipp: "Sommergemüse satt – leichte Salate und Gegrilltes." },
+  { obst: ["Pflaumen", "Brombeeren", "Pfirsiche"], gemuese: ["Tomaten", "Mais", "Aubergine", "Paprika"], tipp: "Tomaten und Mais haben jetzt vollen Geschmack." },
+  { obst: ["Äpfel", "Birnen", "Pflaumen", "Trauben"], gemuese: ["Kürbis", "Mangold", "Fenchel", "Brokkoli"], tipp: "Kürbiszeit startet – perfekt für Suppen und Ofengemüse." },
+  { obst: ["Äpfel", "Birnen", "Trauben"], gemuese: ["Kürbis", "Rote Bete", "Grünkohl", "Pilze"], tipp: "Kürbis, Pilze und Rote Bete – der Herbst wird gemütlich." },
+  { obst: ["Äpfel", "Birnen"], gemuese: ["Kürbis", "Grünkohl", "Wirsing", "Rosenkohl"], tipp: "Deftige Kohlgerichte und Kürbissuppe wärmen jetzt." },
+  { obst: ["Äpfel", "Birnen", "Orangen"], gemuese: ["Grünkohl", "Rosenkohl", "Rote Bete", "Lauch"], tipp: "Winterzeit – Grünkohl, Rosenkohl und Ofengemüse." },
+];
+
+function aktuelleSaison() {
+  return SAISON[new Date().getMonth()];
+}
+
 const MAHLZEIT_META = {
   "Frühstück":   { farbe: "#fdecd2", textfarbe: "#a05a2c" },
   "Brotbox":     { farbe: "#e8f0e3", textfarbe: "#4d7c5a" },
@@ -1602,6 +1622,39 @@ function EinkaufslistePanel({ liste, weekDates, onClose, onToggle, onAdd, onRemo
     druckeHtml(`Einkaufsliste ${weekDates[0]}`, html, "A4 portrait");
   };
 
+  // Einkaufsliste als reiner Text (für Teilen / Zwischenablage)
+  const alsText = () => {
+    let t = `🛒 Einkaufsliste (KW ab ${weekDates[0]})\n`;
+    anzuzeigendeKats.filter(k => (liste[k] || []).length > 0).forEach(kat => {
+      t += `\n${kat}:\n`;
+      (liste[kat] || []).forEach(item => {
+        const menge = (item.menge != null && item.einheit) ? ` – ${formatMenge(item.menge, item.einheit)}` : "";
+        t += `${item.abgehakt ? "✓" : "•"} ${item.zutat}${menge}\n`;
+      });
+    });
+    return t.trim();
+  };
+
+  const [teilenStatus, setTeilenStatus] = React.useState("");
+  const teilen = async () => {
+    const text = alsText();
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `Einkaufsliste ${weekDates[0]}`, text });
+        return;
+      }
+    } catch (e) { if (e.name === "AbortError") return; }
+    // Fallback: Zwischenablage
+    try {
+      await navigator.clipboard.writeText(text);
+      setTeilenStatus("In Zwischenablage kopiert!");
+      setTimeout(() => setTeilenStatus(""), 2500);
+    } catch {
+      setTeilenStatus("Teilen nicht möglich");
+      setTimeout(() => setTeilenStatus(""), 2500);
+    }
+  };
+
   return (
     <div style={{ background: "#fff", border: "2px solid #6b9c7a", borderRadius: 16, padding: 0, marginBottom: 28, overflow: "hidden", boxShadow: "0 4px 24px #4d7c5a1a" }}>
       {/* Header */}
@@ -1615,10 +1668,15 @@ function EinkaufslistePanel({ liste, weekDates, onClose, onToggle, onAdd, onRemo
           <div style={{ width: 100, height: 8, background: "#ffffff33", borderRadius: 99 }}>
             <div style={{ width: `${gesamtAnzahl ? (abgehakt / gesamtAnzahl) * 100 : 0}%`, height: "100%", background: "#fff", borderRadius: 99, transition: "width .3s" }} />
           </div>
+          <button onClick={teilen} style={{ background: "#ffffff33", border: "none", borderRadius: 8, color: "#fff", cursor: "pointer", fontSize: 13, padding: "5px 12px", fontWeight: 700 }}>Teilen</button>
           <button onClick={drucken} style={{ background: "#ffffff33", border: "none", borderRadius: 8, color: "#fff", cursor: "pointer", fontSize: 13, padding: "5px 12px", fontWeight: 700 }}>Drucken</button>
           <button onClick={onClose} style={{ background: "#ffffff33", border: "none", borderRadius: 8, color: "#fff", cursor: "pointer", fontSize: 18, padding: "4px 10px", fontWeight: 700 }}>×</button>
         </div>
       </div>
+
+      {teilenStatus && (
+        <div style={{ background: "#dcfce7", color: "#166534", textAlign: "center", padding: "8px", fontSize: 13, fontWeight: 600 }}>{teilenStatus}</div>
+      )}
 
       {/* Kategorien */}
       <div className="einkauf-grid">
@@ -1882,6 +1940,28 @@ function RezepteView({ rezepte, setRezepte }) {
           Das Foto wird analysiert und in ein Rezept umgewandelt – einen Moment bitte…
         </div>
       )}
+
+      {(() => {
+        const s = aktuelleSaison();
+        const monat = new Date().toLocaleDateString("de-DE", { month: "long" });
+        return (
+          <div style={{ background: "linear-gradient(135deg,#f0f9eb,#fef6e4)", border: "1px solid #d9e8c4", borderRadius: 12, padding: "14px 18px", marginBottom: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <span style={{ fontSize: 18 }}>🌿</span>
+              <span style={{ fontWeight: 700, color: "#5a7a3c" }}>Saison im {monat}</span>
+            </div>
+            <div style={{ fontSize: 14, color: "#5c6a4c", marginBottom: 8 }}>{s.tipp}</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {[...s.gemuese, ...s.obst].map(z => (
+                <button key={z} onClick={() => setSearch(z)}
+                  style={{ background: "#fff", border: "1px solid #cfe0b8", borderRadius: 99, padding: "3px 11px", fontSize: 13, color: "#4d6a2c", cursor: "pointer" }}>
+                  {z}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       <div style={{ marginBottom: 28 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
