@@ -1172,7 +1172,7 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
     setKalender(n); save("kalender", n);
   };
 
-  const generiereWochenplan = async () => {
+  const generiereWochenplan = async (nurFavoriten = false) => {
     setGenerating(true);
     await new Promise(r => setTimeout(r, 900));
     const alleRezepte = [...rezepte, ...ABENTEUER_REZEPTE];
@@ -1198,8 +1198,14 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
           // Brotbox-Rezepte aus der Bibliothek bevorzugen, sonst feste Optionen
           const brotboxRezepte = alleRezepte.filter(r => r.kategorie === "Brotbox" && rezeptKompatibel(r, vorlieben, anwesend));
           if (brotboxRezepte.length > 0) {
-            const gewählt = brotboxRezepte[Math.floor(Math.random() * brotboxRezepte.length)];
-            neuerPlan[tag][m] = { ...gewählt, typ: "brotbox" };
+            let bbGewählt;
+            if (nurFavoriten) {
+              const sortiert = brotboxRezepte.map(r => ({ r, s: scoreRezept(r, vorlieben, anwesend) })).sort((a, b) => b.s - a.s);
+              bbGewählt = sortiert[0].r;
+            } else {
+              bbGewählt = brotboxRezepte[Math.floor(Math.random() * brotboxRezepte.length)];
+            }
+            neuerPlan[tag][m] = { ...bbGewählt, typ: "brotbox" };
             return;
           }
           const brotboxOptionen = [
@@ -1221,13 +1227,25 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
           !genutzt.has(r.id) && rezeptKompatibel(r, vorlieben, anwesend)
         );
         // Fallback: wenn alle Rezepte inkompatibel sind, alle erlauben (lieber was als nichts)
-        const pool = verfügbar.length > 0 ? verfügbar : alleRezepte.filter(r => !genutzt.has(r.id));
-        const bewertet = pool.map(r => ({ r, score: scoreRezept(r, vorlieben, anwesend) + (Math.random() * 2 - 1) }));
+        let pool = verfügbar.length > 0 ? verfügbar : alleRezepte.filter(r => !genutzt.has(r.id));
+
+        // Favoriten-Modus: nur Rezepte mit überwiegend positiven Bewertungen
+        if (nurFavoriten) {
+          const favs = pool.filter(r => {
+            const stimmen = Object.values(r.bewertungen || {}).filter(v => v !== undefined);
+            return stimmen.length > 0 && stimmen.reduce((a, b) => a + b, 0) > 0;
+          });
+          if (favs.length > 0) pool = favs;
+        }
+
+        // Zufallsanteil klein im Favoriten-Modus, damit Lieblingsgerichte klar gewinnen
+        const zufall = nurFavoriten ? 0.4 : 2;
+        const bewertet = pool.map(r => ({ r, score: scoreRezept(r, vorlieben, anwesend) + (Math.random() * zufall - zufall / 2) }));
         bewertet.sort((a, b) => b.score - a.score);
 
-        // Gelegentlich Abenteuer einstreuen (ca. 20%)
+        // Gelegentlich Abenteuer einstreuen (ca. 20%) – im Favoriten-Modus nicht
         let gewählt;
-        if (Math.random() < 0.2) {
+        if (!nurFavoriten && Math.random() < 0.2) {
           const abent = ABENTEUER_REZEPTE.filter(r => !genutzt.has(r.id) && rezeptKompatibel(r, vorlieben, anwesend));
           gewählt = abent[Math.floor(Math.random() * abent.length)] || bewertet[0]?.r;
         } else {
@@ -1464,8 +1482,11 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
       </div>
 
       <div className="btn-zeile">
-        <button onClick={generiereWochenplan} disabled={generating} style={{ ...btnStyle("#c2410c"), fontSize: 14, padding: "10px 18px" }}>
+        <button onClick={() => generiereWochenplan(false)} disabled={generating} style={{ ...btnStyle("#c2410c"), fontSize: 14, padding: "10px 18px" }}>
           {generating ? "Plane…" : "Wochenplan generieren"}
+        </button>
+        <button onClick={() => generiereWochenplan(true)} disabled={generating} style={{ ...btnStyle("#d97706"), fontSize: 14, padding: "10px 18px" }} title="Plan aus euren bestbewerteten Gerichten">
+          ⭐ Aus Favoriten
         </button>
         {Object.keys(plan).length > 0 && <>
           <button onClick={generiereEinkaufsliste} style={btnStyle("#4d7c5a")}>Einkaufsliste</button>
@@ -1836,7 +1857,23 @@ function RezepteView({ rezepte, setRezepte }) {
   const [search, setSearch] = useState("");
   const [form, setForm] = useState({ name: "", kategorie: "", dauer: "", link: "", zutaten: "", tags: "", beschreibung: "" });
   const [fotoStatus, setFotoStatus] = useState(null); // null | "laden" | {fehler}
+  const [resteEingabe, setResteEingabe] = useState("");
+  const [resteAktiv, setResteAktiv] = useState(false);
   const fotoInputRef = React.useRef(null);
+
+  // Reste-Verwertung: Rezepte finden, die möglichst viele der eingegebenen Zutaten nutzen
+  const resteTreffer = React.useMemo(() => {
+    const zutaten = resteEingabe.split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+    if (zutaten.length === 0) return [];
+    const alle = [...rezepte, ...ABENTEUER_REZEPTE];
+    return alle.map(r => {
+      const rezeptZutaten = (r.zutaten || []).map(z => (typeof z === "string" ? z : z.name || "").toLowerCase());
+      const treffer = zutaten.filter(z => rezeptZutaten.some(rz => rz.includes(z) || z.includes(rz)));
+      return { r, anzahl: treffer.length, treffer };
+    }).filter(x => x.anzahl > 0)
+      .sort((a, b) => b.anzahl - a.anzahl)
+      .slice(0, 8);
+  }, [resteEingabe, rezepte]);
 
   const fotoGewaehlt = async (e) => {
     const file = e.target.files?.[0];
@@ -1962,6 +1999,45 @@ function RezepteView({ rezepte, setRezepte }) {
           </div>
         );
       })()}
+
+      <div style={{ background: "#fff7ed", border: "1px solid #f5d5aa", borderRadius: 12, padding: "14px 18px", marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, cursor: "pointer" }} onClick={() => setResteAktiv(a => !a)}>
+          <span style={{ fontSize: 18 }}>♻️</span>
+          <span style={{ fontWeight: 700, color: "#a05a2c" }}>Reste verwerten</span>
+          <span style={{ marginLeft: "auto", color: "#c08a4c", fontSize: 13 }}>{resteAktiv ? "▲" : "▼"}</span>
+        </div>
+        {resteAktiv && (
+          <>
+            <div style={{ fontSize: 13, color: "#8a6a4c", marginBottom: 8 }}>
+              Was ist übrig? Zutaten kommagetrennt eingeben – wir finden passende Rezepte.
+            </div>
+            <input
+              value={resteEingabe}
+              onChange={e => setResteEingabe(e.target.value)}
+              placeholder="z.B. Zucchini, Feta, Tomaten"
+              style={{ ...inputStyle, marginBottom: 12 }}
+            />
+            {resteEingabe.trim() && (
+              resteTreffer.length > 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {resteTreffer.map(({ r, anzahl, treffer }) => (
+                    <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #f0ddc0", borderRadius: 8, padding: "8px 12px" }}>
+                      <span style={{ background: "#fef3c7", color: "#a05a2c", fontWeight: 700, fontSize: 12, borderRadius: 99, padding: "2px 9px", flexShrink: 0 }}>{anzahl}×</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: 14, color: "#3b2412" }}>{r.name}</div>
+                        <div style={{ fontSize: 12, color: "#a98a5c" }}>passt zu: {treffer.join(", ")}</div>
+                      </div>
+                      {r.link && <a href={r.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#c2410c", fontWeight: 600, flexShrink: 0 }}>Rezept →</a>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ fontSize: 13, color: "#b08968" }}>Keine passenden Rezepte gefunden – versuch andere Zutaten.</div>
+              )
+            )}
+          </>
+        )}
+      </div>
 
       <div style={{ marginBottom: 28 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
