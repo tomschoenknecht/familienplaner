@@ -1103,6 +1103,7 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
   const [generating, setGenerating] = useState(false);
   const [editSlot, setEditSlot] = useState(null);
   const [einkaufsliste, setEinkaufsliste] = useState(null);
+  const [zielPortionen, setZielPortionen] = useState(FAMILIE.length);
   const [spruchEdit, setSpruchEdit] = useState(false);
 
   const weekDates = getWeekDates(weekOffset);
@@ -1263,7 +1264,9 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
     setGenerating(false);
   };
 
-  const berechneEinkaufsliste = () => {
+  const berechneEinkaufsliste = (zielPortionen = null) => {
+    // Portionsfaktor: skaliert zusätzlich zur Anwesenheit. null = keine Skalierung (nur Anwesenheit).
+    const portionsFaktor = (zielPortionen == null) ? 1 : (zielPortionen / FAMILIE.length);
     const aktuelleById = {};
     const aktuelleByName = {};
     const zutatReferenz = {}; // Zutatname (lowercase) -> { einheit, menge } aus aktuellen Rezepten
@@ -1305,7 +1308,7 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
             basisMenge = (basisMenge == null) ? 1 : basisMenge;
             const key = `${name}|${einheit}`;
             if (!zutatenMap[key]) zutatenMap[key] = { name, einheit, menge: 0 };
-            zutatenMap[key].menge += basisMenge * faktor;
+            zutatenMap[key].menge += basisMenge * faktor * portionsFaktor;
           });
         }
       });
@@ -1348,7 +1351,15 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
   };
 
   const generiereEinkaufsliste = () => {
-    setEinkaufsliste(berechneEinkaufsliste());
+    setZielPortionen(FAMILIE.length);
+    setEinkaufsliste(berechneEinkaufsliste(FAMILIE.length));
+  };
+
+  // Portionszahl ändern und Liste neu berechnen (min. 1, max. 20)
+  const aenderePortionen = (n) => {
+    const ziel = Math.max(1, Math.min(20, n));
+    setZielPortionen(ziel);
+    setEinkaufsliste(berechneEinkaufsliste(ziel));
   };
 
   const toggleAbhaken = (kat, id) => {
@@ -1499,6 +1510,8 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
         <EinkaufslistePanel
           liste={einkaufsliste}
           weekDates={weekDates}
+          zielPortionen={zielPortionen}
+          onPortionen={aenderePortionen}
           onClose={() => setEinkaufsliste(null)}
           onToggle={toggleAbhaken}
           onAdd={fuegeEinkaufslisteItemHinzu}
@@ -1600,7 +1613,7 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
 
 // ── Einkaufsliste ─────────────────────────────────────────────────────────────
 
-function EinkaufslistePanel({ liste, weekDates, onClose, onToggle, onAdd, onRemove }) {
+function EinkaufslistePanel({ liste, weekDates, zielPortionen, onPortionen, onClose, onToggle, onAdd, onRemove }) {
   const katReihenfolge = Object.keys(SUPERMARKT_KATEGORIEN);
   const alleKats = [...new Set([...katReihenfolge, ...Object.keys(liste)])];
   // Alle Kategorien anzeigen, nicht nur gefüllte – damit auch leere Kategorien ergänzt werden können
@@ -1694,6 +1707,18 @@ function EinkaufslistePanel({ liste, weekDates, onClose, onToggle, onAdd, onRemo
           <button onClick={onClose} style={{ background: "#ffffff33", border: "none", borderRadius: 8, color: "#fff", cursor: "pointer", fontSize: 18, padding: "4px 10px", fontWeight: 700 }}>×</button>
         </div>
       </div>
+
+      {onPortionen && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, padding: "10px 24px", background: "#f4f9f5", borderBottom: "1px solid #e0ece2" }}>
+          <span style={{ fontSize: 14, color: "#4d7c5a", fontWeight: 600 }}>👥 Menge für</span>
+          <button onClick={() => onPortionen(zielPortionen - 1)} style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid #cde0d2", background: "#fff", color: "#4d7c5a", fontSize: 18, fontWeight: 700, cursor: "pointer", lineHeight: 1 }}>−</button>
+          <span style={{ fontSize: 16, fontWeight: 800, color: "#3b2412", minWidth: 90, textAlign: "center" }}>{zielPortionen} {zielPortionen === 1 ? "Person" : "Personen"}</span>
+          <button onClick={() => onPortionen(zielPortionen + 1)} style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid #cde0d2", background: "#fff", color: "#4d7c5a", fontSize: 18, fontWeight: 700, cursor: "pointer", lineHeight: 1 }}>+</button>
+          {zielPortionen !== FAMILIE.length && (
+            <button onClick={() => onPortionen(FAMILIE.length)} style={{ fontSize: 12, color: "#4d7c5a", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>zurücksetzen</button>
+          )}
+        </div>
+      )}
 
       {teilenStatus && (
         <div style={{ background: "#dcfce7", color: "#166534", textAlign: "center", padding: "8px", fontSize: 13, fontWeight: 600 }}>{teilenStatus}</div>
