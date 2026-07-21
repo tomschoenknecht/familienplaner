@@ -83,6 +83,11 @@
   }
   .ks-spruch-tape { position:absolute; top:-6px; left:50%; transform:translateX(-50%) rotate(3deg);
     width:38px; height:14px; background:rgba(255,255,255,0.5); border:0.5px solid rgba(255,255,255,0.6); }
+  .ks-deko {
+    position: absolute; z-index: 3; font-size: 26px; line-height: 1;
+    filter: drop-shadow(0 2px 3px rgba(0,0,0,0.28)); pointer-events: none;
+    user-select: none; opacity: 0.92;
+  }
   .ks-zettelgrid {
     position: relative; z-index: 2; display: flex; gap: 0.4%;
     padding: 84px 1.6% 5% 1.6%; align-items: stretch;
@@ -220,6 +225,34 @@ const SAISON = [
 
 function aktuelleSaison() {
   return SAISON[new Date().getMonth()];
+}
+
+// Jahreszeitabhängige Kühlschrank-Deko: kleine Magnete/Aufkleber je nach Monat.
+// Positionen unauffällig verteilt (Ecken/Ränder), stören den Wochenplan nicht.
+const DEKO_SAISON = [
+  { emoji: ["❄️", "⛄", "🧣"], name: "Winter" },        // Januar
+  { emoji: ["❄️", "💝", "🧤"], name: "Winter" },        // Februar
+  { emoji: ["🌷", "🌱", "🐣"], name: "Frühling" },      // März
+  { emoji: ["🌸", "🐰", "🌦️"], name: "Frühling" },      // April
+  { emoji: ["🌻", "🐝", "🌿"], name: "Frühling" },      // Mai
+  { emoji: ["☀️", "🍓", "🏖️"], name: "Sommer" },        // Juni
+  { emoji: ["☀️", "🍉", "🍦"], name: "Sommer" },        // Juli
+  { emoji: ["🌅", "🌽", "🏕️"], name: "Sommer" },        // August
+  { emoji: ["🍂", "🍇", "🍄"], name: "Herbst" },        // September
+  { emoji: ["🎃", "🍁", "🌰"], name: "Herbst" },        // Oktober
+  { emoji: ["🍂", "🌧️", "🕯️"], name: "Herbst" },        // November
+  { emoji: ["🎄", "⭐", "🎁"], name: "Winter" },        // Dezember
+];
+
+// Feste Positionen für die Deko-Elemente (am Rand, damit die Zettel frei bleiben)
+const DEKO_POSITIONEN = [
+  { top: "10px", left: "12px", rot: -14 },
+  { top: "14px", right: "14px", rot: 12 },
+  { bottom: "12px", right: "18px", rot: -8 },
+];
+
+function aktuelleDeko() {
+  return DEKO_SAISON[new Date().getMonth()];
 }
 
 const MAHLZEIT_META = {
@@ -1059,6 +1092,13 @@ function KuehlschrankPlan({ weekDates, plan, anwesendAn, onSlot, onTogglePerson,
         ))}
       </div>
       <div className="kuehlschrank" style={{ "--fridge-img": `url("${KS_FRIDGE}")` }}>
+        {aktuelleDeko().emoji.map((e, i) => {
+          const pos = DEKO_POSITIONEN[i] || DEKO_POSITIONEN[0];
+          const { rot, ...coords } = pos;
+          return (
+            <span key={i} className="ks-deko" style={{ ...coords, transform: `rotate(${rot}deg)` }} aria-hidden="true">{e}</span>
+          );
+        })}
         {spruch ? (
           <div className="ks-spruch"><span className="ks-spruch-tape" />{spruch}</div>
         ) : null}
@@ -1103,7 +1143,6 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
   const [generating, setGenerating] = useState(false);
   const [editSlot, setEditSlot] = useState(null);
   const [einkaufsliste, setEinkaufsliste] = useState(null);
-  const [zielPortionen, setZielPortionen] = useState(FAMILIE.length);
   const [spruchEdit, setSpruchEdit] = useState(false);
 
   const weekDates = getWeekDates(weekOffset);
@@ -1264,9 +1303,7 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
     setGenerating(false);
   };
 
-  const berechneEinkaufsliste = (zielPortionen = null) => {
-    // Portionsfaktor: skaliert zusätzlich zur Anwesenheit. null = keine Skalierung (nur Anwesenheit).
-    const portionsFaktor = (zielPortionen == null) ? 1 : (zielPortionen / FAMILIE.length);
+  const berechneEinkaufsliste = () => {
     const aktuelleById = {};
     const aktuelleByName = {};
     const zutatReferenz = {}; // Zutatname (lowercase) -> { einheit, menge } aus aktuellen Rezepten
@@ -1308,7 +1345,7 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
             basisMenge = (basisMenge == null) ? 1 : basisMenge;
             const key = `${name}|${einheit}`;
             if (!zutatenMap[key]) zutatenMap[key] = { name, einheit, menge: 0 };
-            zutatenMap[key].menge += basisMenge * faktor * portionsFaktor;
+            zutatenMap[key].menge += basisMenge * faktor;
           });
         }
       });
@@ -1351,15 +1388,7 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
   };
 
   const generiereEinkaufsliste = () => {
-    setZielPortionen(FAMILIE.length);
-    setEinkaufsliste(berechneEinkaufsliste(FAMILIE.length));
-  };
-
-  // Portionszahl ändern und Liste neu berechnen (min. 1, max. 20)
-  const aenderePortionen = (n) => {
-    const ziel = Math.max(1, Math.min(20, n));
-    setZielPortionen(ziel);
-    setEinkaufsliste(berechneEinkaufsliste(ziel));
+    setEinkaufsliste(berechneEinkaufsliste());
   };
 
   const toggleAbhaken = (kat, id) => {
@@ -1510,8 +1539,6 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
         <EinkaufslistePanel
           liste={einkaufsliste}
           weekDates={weekDates}
-          zielPortionen={zielPortionen}
-          onPortionen={aenderePortionen}
           onClose={() => setEinkaufsliste(null)}
           onToggle={toggleAbhaken}
           onAdd={fuegeEinkaufslisteItemHinzu}
@@ -1613,7 +1640,7 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
 
 // ── Einkaufsliste ─────────────────────────────────────────────────────────────
 
-function EinkaufslistePanel({ liste, weekDates, zielPortionen, onPortionen, onClose, onToggle, onAdd, onRemove }) {
+function EinkaufslistePanel({ liste, weekDates, onClose, onToggle, onAdd, onRemove }) {
   const katReihenfolge = Object.keys(SUPERMARKT_KATEGORIEN);
   const alleKats = [...new Set([...katReihenfolge, ...Object.keys(liste)])];
   // Alle Kategorien anzeigen, nicht nur gefüllte – damit auch leere Kategorien ergänzt werden können
@@ -1707,18 +1734,6 @@ function EinkaufslistePanel({ liste, weekDates, zielPortionen, onPortionen, onCl
           <button onClick={onClose} style={{ background: "#ffffff33", border: "none", borderRadius: 8, color: "#fff", cursor: "pointer", fontSize: 18, padding: "4px 10px", fontWeight: 700 }}>×</button>
         </div>
       </div>
-
-      {onPortionen && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, padding: "10px 24px", background: "#f4f9f5", borderBottom: "1px solid #e0ece2" }}>
-          <span style={{ fontSize: 14, color: "#4d7c5a", fontWeight: 600 }}>👥 Menge für</span>
-          <button onClick={() => onPortionen(zielPortionen - 1)} style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid #cde0d2", background: "#fff", color: "#4d7c5a", fontSize: 18, fontWeight: 700, cursor: "pointer", lineHeight: 1 }}>−</button>
-          <span style={{ fontSize: 16, fontWeight: 800, color: "#3b2412", minWidth: 90, textAlign: "center" }}>{zielPortionen} {zielPortionen === 1 ? "Person" : "Personen"}</span>
-          <button onClick={() => onPortionen(zielPortionen + 1)} style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid #cde0d2", background: "#fff", color: "#4d7c5a", fontSize: 18, fontWeight: 700, cursor: "pointer", lineHeight: 1 }}>+</button>
-          {zielPortionen !== FAMILIE.length && (
-            <button onClick={() => onPortionen(FAMILIE.length)} style={{ fontSize: 12, color: "#4d7c5a", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>zurücksetzen</button>
-          )}
-        </div>
-      )}
 
       {teilenStatus && (
         <div style={{ background: "#dcfce7", color: "#166534", textAlign: "center", padding: "8px", fontSize: 13, fontWeight: 600 }}>{teilenStatus}</div>
