@@ -1028,21 +1028,27 @@ function ksVersatz(tagIdx, mahlIdx) {
   };
 }
 
-function KuehlschrankZettel({ tag, datum, mahlzeitName, tagFarbe, tagCol, mahlzeit, anwesend, istTagKopf, versatz, onSlot, onTogglePerson }) {
+function KuehlschrankZettel({ tag, datum, mahlzeitName, tagFarbe, tagCol, mahlzeit, anwesend, istTagKopf, versatz, onSlot, onTogglePerson, tauschAktiv, istGewaehlt }) {
   const { up, down } = ksBewertung(mahlzeit);
   return (
     <div
       className="ks-zettel-wrap"
       style={{
-        transform: `rotate(${versatz.rot}deg) translate(${versatz.dx}px, ${versatz.dy}px)`,
+        transform: `rotate(${versatz.rot}deg) translate(${versatz.dx}px, ${versatz.dy}px) ${istGewaehlt ? "scale(1.06)" : ""}`,
         "--tape-rot": `${versatz.tapeRot}deg`,
         "--tape-left": `${versatz.tapeLeft}%`,
+        zIndex: istGewaehlt ? 20 : undefined,
+        transition: "transform .15s",
       }}
     >
       <div
         className="ks-zettel"
         onClick={() => onSlot(tag, mahlzeitName)}
-        style={{ "--tex-img": `url("${KS_TEX}")` }}
+        style={{
+          "--tex-img": `url("${KS_TEX}")`,
+          outline: istGewaehlt ? "3px solid #7c3aed" : (tauschAktiv ? "2px dashed rgba(124,58,237,0.45)" : "none"),
+          outlineOffset: istGewaehlt ? 2 : 1,
+        }}
       >
         <div className="ks-color" style={{ background: tagFarbe }} />
         <div className="ks-tex" />
@@ -1055,10 +1061,10 @@ function KuehlschrankZettel({ tag, datum, mahlzeitName, tagFarbe, tagCol, mahlze
           )}
           <div className="ks-mahl-label">{mahlzeitName}</div>
           <div className="ks-mahl-name">{mahlzeit.name}</div>
-          <div className="ks-praesenz" onClick={e => e.stopPropagation()}>
+          <div className="ks-praesenz" onClick={tauschAktiv ? undefined : (e => e.stopPropagation())}>
             {FAMILIE.map(p => (
               <span key={p} className="ks-init" title={anwesend.includes(p) ? `${p} isst mit` : `${p} abwesend`}
-                onClick={() => onTogglePerson(p, datum, mahlzeitName)}
+                onClick={tauschAktiv ? undefined : (() => onTogglePerson(p, datum, mahlzeitName))}
                 style={anwesend.includes(p)
                   ? { background: farbeFuer(p), color: "#fff" }
                   : { background: "rgba(0,0,0,0.07)", color: "rgba(0,0,0,0.28)" }}>
@@ -1078,7 +1084,7 @@ function KuehlschrankZettel({ tag, datum, mahlzeitName, tagFarbe, tagCol, mahlze
   );
 }
 
-function KuehlschrankPlan({ weekDates, plan, anwesendAn, onSlot, onTogglePerson, spruch }) {
+function KuehlschrankPlan({ weekDates, plan, anwesendAn, onSlot, onTogglePerson, spruch, tauschAktiv, tauschErster }) {
   return (
     <div>
       <div className="ks-legende">
@@ -1108,9 +1114,25 @@ function KuehlschrankPlan({ weekDates, plan, anwesendAn, onSlot, onTogglePerson,
               {MAHLZEITEN.map((m, j) => {
                 const mahlzeit = plan[tag]?.[m];
                 if (!mahlzeit) {
-                  // Platzhalter: hält die Reihe auf gleicher Höhe, unsichtbar
-                  return <div key={m} className="ks-zettel-platzhalter" aria-hidden="true" />;
+                  // Platzhalter: hält die Reihe auf gleicher Höhe. Im Tausch-Modus anklickbar,
+                  // damit man eine Mahlzeit auf einen freien Platz schieben kann.
+                  const istGewaehlt = tauschErster && tauschErster.tag === tag && tauschErster.m === m;
+                  return (
+                    <div
+                      key={m}
+                      className="ks-zettel-platzhalter"
+                      onClick={tauschAktiv ? () => onSlot(tag, m) : undefined}
+                      style={tauschAktiv ? {
+                        cursor: "pointer",
+                        border: istGewaehlt ? "2px dashed #7c3aed" : "2px dashed rgba(124,58,237,0.35)",
+                        borderRadius: 8,
+                        background: istGewaehlt ? "rgba(124,58,237,0.12)" : "transparent",
+                      } : undefined}
+                      aria-hidden={tauschAktiv ? undefined : "true"}
+                    />
+                  );
                 }
+                const istGewaehlt = tauschErster && tauschErster.tag === tag && tauschErster.m === m;
                 return (
                   <KuehlschrankZettel
                     key={m}
@@ -1125,6 +1147,8 @@ function KuehlschrankPlan({ weekDates, plan, anwesendAn, onSlot, onTogglePerson,
                     versatz={ksVersatz(i, j)}
                     onSlot={onSlot}
                     onTogglePerson={onTogglePerson}
+                    tauschAktiv={tauschAktiv}
+                    istGewaehlt={istGewaehlt}
                   />
                 );
               })}
@@ -1142,6 +1166,8 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
   const [weekOffset, setWeekOffset] = useState(1);
   const [generating, setGenerating] = useState(false);
   const [editSlot, setEditSlot] = useState(null);
+  const [tauschModus, setTauschModus] = useState(false);
+  const [tauschErster, setTauschErster] = useState(null); // { tag, m }
   const [einkaufsliste, setEinkaufsliste] = useState(null);
   const [spruchEdit, setSpruchEdit] = useState(false);
 
@@ -1412,6 +1438,30 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
     }));
   };
 
+  // Klick auf einen Zettel: je nach Modus bearbeiten oder tauschen
+  const slotKlick = (tag, m) => {
+    if (!tauschModus) { setEditSlot({ tag, m }); return; }
+    if (!tauschErster) { setTauschErster({ tag, m }); return; }
+    // zweiter Klick: gleicher Zettel -> Auswahl aufheben
+    if (tauschErster.tag === tag && tauschErster.m === m) { setTauschErster(null); return; }
+    const a = tauschErster, bTag = tag, bM = m;
+    const inhaltA = plan[a.tag]?.[a.m] ?? null;
+    const inhaltB = plan[bTag]?.[bM] ?? null;
+    const updated = {
+      ...plan,
+      [a.tag]: { ...plan[a.tag], [a.m]: inhaltB },
+      [bTag]: { ...(a.tag === bTag ? { ...plan[a.tag], [a.m]: inhaltB } : plan[bTag]), [bM]: inhaltA },
+    };
+    // leere Slots aufräumen (null-Einträge entfernen)
+    Object.keys(updated).forEach(t => {
+      const tagObj = { ...updated[t] };
+      Object.keys(tagObj).forEach(k => { if (tagObj[k] == null) delete tagObj[k]; });
+      updated[t] = tagObj;
+    });
+    setWochenplan(prev => { const n = { ...prev, [weekKey]: updated }; save("wochenplan", n); return n; });
+    setTauschErster(null);
+  };
+
   const speichereWoche = () => {
     const eintrag = { woche: weekKey, plan: plan, datum: new Date().toISOString() };
     const neuer = [eintrag, ...(verlauf || []).filter(v => v.woche !== weekKey)].slice(0, 12);
@@ -1529,11 +1579,26 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
           ⭐ Aus Favoriten
         </button>
         {Object.keys(plan).length > 0 && <>
+          <button
+            onClick={() => { setTauschModus(t => !t); setTauschErster(null); }}
+            style={{ ...btnStyle(tauschModus ? "#7c3aed" : "#8a6a4c"), fontSize: 14 }}
+            title="Zwei Mahlzeiten per Klick vertauschen"
+          >
+            {tauschModus ? "✓ Tauschen beenden" : "🔄 Zettel tauschen"}
+          </button>
           <button onClick={generiereEinkaufsliste} style={btnStyle("#4d7c5a")}>Einkaufsliste</button>
           <button onClick={speichereWoche} style={btnStyle("#a05a2c")}>Speichern</button>
           <button onClick={druckeWochenplan} style={btnStyle("#8a6a4c")}>Drucken</button>
         </>}
       </div>
+
+      {tauschModus && (
+        <div style={{ background: "#f3e8ff", border: "1px solid #d8b4fe", color: "#6b21a8", borderRadius: 10, padding: "10px 16px", marginBottom: 14, fontSize: 14, textAlign: "center", fontWeight: 600 }}>
+          {tauschErster
+            ? `„${tauschErster.m} am ${tauschErster.tag}“ ausgewählt – jetzt den Zettel antippen, mit dem getauscht werden soll.`
+            : "Tausch-Modus: Tippe zwei Zettel an, um sie zu vertauschen."}
+        </div>
+      )}
 
       {einkaufsliste && (
         <EinkaufslistePanel
@@ -1617,7 +1682,9 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
           weekDates={weekDates}
           plan={plan}
           anwesendAn={anwesendAn}
-          onSlot={(tag, m) => setEditSlot({ tag, m })}
+          onSlot={slotKlick}
+          tauschAktiv={tauschModus}
+          tauschErster={tauschErster}
           onTogglePerson={(person, datum, m) => togglePersonAnwesenheit(person, datum, m)}
           spruch={spruch}
         />
