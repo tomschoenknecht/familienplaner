@@ -632,7 +632,7 @@ let _sb = null;            // Supabase-Client
 let _household = null;     // Haushalts-Code
 let _channel = null;       // Realtime-Channel
 let _libPromise = null;    // Lade-Promise der Bibliothek
-const DATEN_KEYS = ["rezepte", "vorlieben", "kalender", "wochenplan", "verlauf", "avatarFarben", "familie", "sprueche", "rueckblicke"];
+const DATEN_KEYS = ["rezepte", "vorlieben", "kalender", "wochenplan", "verlauf", "avatarFarben", "familie", "sprueche", "rueckblicke", "gaeste"];
 
 // Migriert Rezepte mit altem/unvollständigem Zutaten-Format (Strings oder Objekte ohne Einheit/Menge)
 // in das aktuelle Objekt-Format mit Mengen & Einheiten. Wird überall angewendet, wo Rezepte gesetzt werden
@@ -1028,7 +1028,7 @@ function ksVersatz(tagIdx, mahlIdx) {
   };
 }
 
-function KuehlschrankZettel({ tag, datum, mahlzeitName, tagFarbe, tagCol, mahlzeit, anwesend, istTagKopf, versatz, onSlot, onTogglePerson, tauschAktiv, istGewaehlt }) {
+function KuehlschrankZettel({ tag, datum, mahlzeitName, tagFarbe, tagCol, mahlzeit, anwesend, istTagKopf, versatz, onSlot, onTogglePerson, tauschAktiv, istGewaehlt, gast, gastKuerzel }) {
   const { up, down } = ksBewertung(mahlzeit);
   return (
     <div
@@ -1071,6 +1071,12 @@ function KuehlschrankZettel({ tag, datum, mahlzeitName, tagFarbe, tagCol, mahlze
                 {personKuerzel(p, FAMILIE)}
               </span>
             ))}
+            {gast && anwesend.includes("__gast__") && (
+              <span className="ks-init" title={`${gast.name} (Gast) isst mit`}
+                style={{ background: "#0d9488", color: "#fff", outline: "1.5px dashed #99f6e4", outlineOffset: 1 }}>
+                {gastKuerzel}
+              </span>
+            )}
             {mahlzeit.id && (up > 0 || down > 0) && (
               <span className="ks-thumbs" style={{ marginLeft: 4 }}>
                 {up > 0 && <span className="ks-thumb" title="Mag ich">👍{up}</span>}
@@ -1084,7 +1090,7 @@ function KuehlschrankZettel({ tag, datum, mahlzeitName, tagFarbe, tagCol, mahlze
   );
 }
 
-function KuehlschrankPlan({ weekDates, plan, anwesendAn, onSlot, onTogglePerson, spruch, tauschAktiv, tauschErster }) {
+function KuehlschrankPlan({ weekDates, plan, anwesendAn, onSlot, onTogglePerson, spruch, tauschAktiv, tauschErster, gast, gastKuerzel }) {
   return (
     <div>
       <div className="ks-legende">
@@ -1149,6 +1155,8 @@ function KuehlschrankPlan({ weekDates, plan, anwesendAn, onSlot, onTogglePerson,
                     onTogglePerson={onTogglePerson}
                     tauschAktiv={tauschAktiv}
                     istGewaehlt={istGewaehlt}
+                    gast={gast}
+                    gastKuerzel={gastKuerzel}
                   />
                 );
               })}
@@ -1162,7 +1170,7 @@ function KuehlschrankPlan({ weekDates, plan, anwesendAn, onSlot, onTogglePerson,
 
 // ── Wochenplan ────────────────────────────────────────────────────────────────
 
-function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, rueckblicke, setRueckblicke, rezepte, vorlieben, kalender, setKalender, verlauf, setVerlauf }) {
+function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, rueckblicke, setRueckblicke, gaeste, setGaeste, rezepte, vorlieben, kalender, setKalender, verlauf, setVerlauf }) {
   const [weekOffset, setWeekOffset] = useState(1);
   const [generating, setGenerating] = useState(false);
   const [editSlot, setEditSlot] = useState(null);
@@ -1170,11 +1178,30 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
   const [tauschErster, setTauschErster] = useState(null); // { tag, m }
   const [einkaufsliste, setEinkaufsliste] = useState(null);
   const [spruchEdit, setSpruchEdit] = useState(false);
+  const [gastDialog, setGastDialog] = useState(false);
 
   const weekDates = getWeekDates(weekOffset);
   const weekKey = weekDates[0];
   const plan = wochenplan[weekKey] || {};
   const spruch = sprueche[weekKey] || "";
+
+  // Gast der Woche: temporäres Besuchskind mit eigenen Vorlieben, das mitisst.
+  // Wird wie eine Person behandelt (Anwesenheit + Kompatibilität), aber separat gespeichert.
+  const GAST_KEY = "__gast__";
+  const gast = gaeste[weekKey] || null; // { name, ernaehrung, unvertraeglichkeiten, mahlzeiten: [] }
+  // Effektive Vorlieben inkl. Gast – so greift rezeptKompatibel/scoreRezept automatisch.
+  const vorliebenEff = gast
+    ? { ...vorlieben, [GAST_KEY]: { mag: [], magNicht: [], unvertraeglichkeiten: gast.unvertraeglichkeiten || [], ernaehrung: gast.ernaehrung || "Alles" } }
+    : vorlieben;
+
+  const setzeGast = (g) => {
+    setGaeste(prev => {
+      const n = { ...prev };
+      if (g) n[weekKey] = g; else delete n[weekKey];
+      save("gaeste", n);
+      return n;
+    });
+  };
 
   const setzeSpruch = (text) => {
     setSprueche(prev => { const n = { ...prev, [weekKey]: text }; save("sprueche", n); return n; });
@@ -1212,12 +1239,21 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
 
   const anwesendAn = (tag, mahlzeit) => {
     const datum = weekDates[WOCHENTAGE.indexOf(tag)];
-    return FAMILIE.filter(p => {
+    const anwesend = FAMILIE.filter(p => {
       const abw = kalender[p] || [];
       if (abw.includes(`${datum}|ganztags`)) return false;
       if (mahlzeit && abw.includes(`${datum}|${mahlzeit}`)) return false;
       return true;
     });
+    // Gast dazunehmen, wenn er an diesem Tag/dieser Mahlzeit mitisst
+    if (gast) {
+      const gastMahlzeiten = gast.mahlzeiten && gast.mahlzeiten.length ? gast.mahlzeiten : ["Mittagessen", "Abendessen"];
+      const gastTage = gast.tage && gast.tage.length ? gast.tage : WOCHENTAGE;
+      const tagPasst = gastTage.includes(tag);
+      const mahlzeitPasst = !mahlzeit || gastMahlzeiten.includes(mahlzeit);
+      if (tagPasst && mahlzeitPasst) anwesend.push(GAST_KEY);
+    }
+    return anwesend;
   };
 
   const togglePersonAnwesenheit = (person, datum, mahlzeit) => {
@@ -1262,11 +1298,11 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
         if (m === "Brotbox") {
           if ([5, 6].includes(ti)) { neuerPlan[tag][m] = null; return; } // Keine Brotbox am Wochenende
           // Brotbox-Rezepte aus der Bibliothek bevorzugen, sonst feste Optionen
-          const brotboxRezepte = alleRezepte.filter(r => r.kategorie === "Brotbox" && rezeptKompatibel(r, vorlieben, anwesend));
+          const brotboxRezepte = alleRezepte.filter(r => r.kategorie === "Brotbox" && rezeptKompatibel(r, vorliebenEff, anwesend));
           if (brotboxRezepte.length > 0) {
             let bbGewählt;
             if (nurFavoriten) {
-              const sortiert = brotboxRezepte.map(r => ({ r, s: scoreRezept(r, vorlieben, anwesend) })).sort((a, b) => b.s - a.s);
+              const sortiert = brotboxRezepte.map(r => ({ r, s: scoreRezept(r, vorliebenEff, anwesend) })).sort((a, b) => b.s - a.s);
               bbGewählt = sortiert[0].r;
             } else {
               bbGewählt = brotboxRezepte[Math.floor(Math.random() * brotboxRezepte.length)];
@@ -1290,7 +1326,7 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
           return;
         }
         const verfügbar = alleRezepte.filter(r =>
-          !genutzt.has(r.id) && rezeptKompatibel(r, vorlieben, anwesend)
+          !genutzt.has(r.id) && rezeptKompatibel(r, vorliebenEff, anwesend)
         );
         // Fallback: wenn alle Rezepte inkompatibel sind, alle erlauben (lieber was als nichts)
         let pool = verfügbar.length > 0 ? verfügbar : alleRezepte.filter(r => !genutzt.has(r.id));
@@ -1306,13 +1342,13 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
 
         // Zufallsanteil klein im Favoriten-Modus, damit Lieblingsgerichte klar gewinnen
         const zufall = nurFavoriten ? 0.4 : 2;
-        const bewertet = pool.map(r => ({ r, score: scoreRezept(r, vorlieben, anwesend) + (Math.random() * zufall - zufall / 2) }));
+        const bewertet = pool.map(r => ({ r, score: scoreRezept(r, vorliebenEff, anwesend) + (Math.random() * zufall - zufall / 2) }));
         bewertet.sort((a, b) => b.score - a.score);
 
         // Gelegentlich Abenteuer einstreuen (ca. 20%) – im Favoriten-Modus nicht
         let gewählt;
         if (!nurFavoriten && Math.random() < 0.2) {
-          const abent = ABENTEUER_REZEPTE.filter(r => !genutzt.has(r.id) && rezeptKompatibel(r, vorlieben, anwesend));
+          const abent = ABENTEUER_REZEPTE.filter(r => !genutzt.has(r.id) && rezeptKompatibel(r, vorliebenEff, anwesend));
           gewählt = abent[Math.floor(Math.random() * abent.length)] || bewertet[0]?.r;
         } else {
           gewählt = bewertet[0]?.r;
@@ -1600,6 +1636,24 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
         </div>
       )}
 
+      <div style={{ marginBottom: 14 }}>
+        {gast ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", background: "#f0fdfa", border: "1px solid #99f6e4", borderRadius: 10, padding: "10px 16px" }}>
+            <span style={{ fontSize: 18 }}>🧒</span>
+            <span style={{ fontWeight: 700, color: "#0f766e" }}>Gast diese Woche: {gast.name}</span>
+            <span style={{ fontSize: 13, color: "#14857a" }}>
+              ({gast.ernaehrung || "Alles"}{(gast.unvertraeglichkeiten || []).length ? ", keine " + gast.unvertraeglichkeiten.join(", ") : ""})
+            </span>
+            <button onClick={() => setGastDialog(true)} style={{ ...btnStyle("#0d9488"), padding: "6px 12px", fontSize: 13, flex: "0 0 auto" }}>Bearbeiten</button>
+            <button onClick={() => setzeGast(null)} style={{ ...btnStyle("#b08968"), padding: "6px 12px", fontSize: 13, flex: "0 0 auto" }}>Entfernen</button>
+          </div>
+        ) : (
+          <button onClick={() => setGastDialog(true)} style={{ ...btnStyle("#0d9488"), fontSize: 14, padding: "9px 16px" }}>
+            🧒 Gast hinzufügen
+          </button>
+        )}
+      </div>
+
       {einkaufsliste && (
         <EinkaufslistePanel
           liste={einkaufsliste}
@@ -1687,6 +1741,8 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
           tauschErster={tauschErster}
           onTogglePerson={(person, datum, m) => togglePersonAnwesenheit(person, datum, m)}
           spruch={spruch}
+          gast={gast}
+          gastKuerzel={gast ? (gast.name || "?").slice(0, 2).replace(/^./, c => c.toUpperCase()) : ""}
         />
       </>)}
 
@@ -1701,11 +1757,89 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
           onClose={() => setEditSlot(null)}
         />
       )}
+
+      {gastDialog && (
+        <GastDialog
+          gast={gast}
+          onSave={(g) => { setzeGast(g); setGastDialog(false); }}
+          onClose={() => setGastDialog(false)}
+        />
+      )}
     </div>
   );
 }
 
 // ── Einkaufsliste ─────────────────────────────────────────────────────────────
+
+function GastDialog({ gast, onSave, onClose }) {
+  const [name, setName] = useState(gast?.name || "");
+  const [ernaehrung, setErnaehrung] = useState(gast?.ernaehrung || "Alles");
+  const [unvertr, setUnvertr] = useState(gast?.unvertraeglichkeiten || []);
+  const [tage, setTage] = useState(gast?.tage || [...WOCHENTAGE]);
+  const [mahlzeiten, setMahlzeiten] = useState(gast?.mahlzeiten || ["Mittagessen", "Abendessen"]);
+
+  const toggle = (arr, setArr, wert) => setArr(arr.includes(wert) ? arr.filter(x => x !== wert) : [...arr, wert]);
+
+  const speichern = () => {
+    const n = (name || "").trim() || "Gast";
+    onSave({ name: n, ernaehrung, unvertraeglichkeiten: unvertr, tage, mahlzeiten });
+  };
+
+  const chip = (aktiv) => ({
+    padding: "6px 12px", borderRadius: 99, fontSize: 13, cursor: "pointer", border: "1px solid",
+    borderColor: aktiv ? "#0d9488" : "#d6d3d1",
+    background: aktiv ? "#0d9488" : "#fff", color: aktiv ? "#fff" : "#57534e", fontWeight: 600,
+  });
+
+  return (
+    <Modal title="🧒 Gast diese Woche" onClose={onClose}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+        <div>
+          <div style={{ fontWeight: 700, color: "#3b2412", marginBottom: 6, fontSize: 14 }}>Name</div>
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="z.B. Mia" style={inputStyle} autoFocus />
+        </div>
+
+        <div>
+          <div style={{ fontWeight: 700, color: "#3b2412", marginBottom: 6, fontSize: 14 }}>Ernährung</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {ERNAEHRUNGSWEISEN.map(ew => (
+              <span key={ew} onClick={() => setErnaehrung(ew)} style={chip(ernaehrung === ew)}>{ew}</span>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div style={{ fontWeight: 700, color: "#3b2412", marginBottom: 6, fontSize: 14 }}>Unverträglichkeiten <span style={{ fontWeight: 400, color: "#a8a29e" }}>(optional)</span></div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {UNVERTRAEGLICHKEITEN.map(u => (
+              <span key={u} onClick={() => toggle(unvertr, setUnvertr, u)} style={chip(unvertr.includes(u))}>{u}</span>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div style={{ fontWeight: 700, color: "#3b2412", marginBottom: 6, fontSize: 14 }}>Isst mit bei</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {["Frühstück", "Mittagessen", "Abendessen"].map(m => (
+              <span key={m} onClick={() => toggle(mahlzeiten, setMahlzeiten, m)} style={chip(mahlzeiten.includes(m))}>{m}</span>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div style={{ fontWeight: 700, color: "#3b2412", marginBottom: 6, fontSize: 14 }}>An welchen Tagen</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {WOCHENTAGE.map(t => (
+              <span key={t} onClick={() => toggle(tage, setTage, t)} style={{ ...chip(tage.includes(t)), padding: "6px 10px" }}>{t.slice(0, 2)}</span>
+            ))}
+          </div>
+        </div>
+
+        <button onClick={speichern} style={{ ...btnStyle("#0d9488"), fontSize: 15, padding: "12px" }}>Gast speichern</button>
+      </div>
+    </Modal>
+  );
+}
 
 function EinkaufslistePanel({ liste, weekDates, onClose, onToggle, onAdd, onRemove }) {
   const katReihenfolge = Object.keys(SUPERMARKT_KATEGORIEN);
@@ -3054,6 +3188,7 @@ function App() {
   const [wochenplan, setWochenplan] = useState(() => load("wochenplan", {}));
   const [sprueche, setSpruecheRaw] = useState(() => load("sprueche", {}));
   const [rueckblicke, setRueckblickeRaw] = useState(() => load("rueckblicke", {}));
+  const [gaeste, setGaesteRaw] = useState(() => load("gaeste", {}));
   const [verlauf, setVerlauf] = useState(() => load("verlauf", []));
   const [avatarFarben, setAvatarFarbenRaw] = useState(() => load("avatarFarben", {}));
   // avatarFarbenAktuell (Modul-Variable) immer synchron zum State halten, damit Komponenten
@@ -3092,7 +3227,7 @@ function App() {
     // Eigene Echo-Updates kurz nach dem Senden ignorieren (verhindert "Zurückspringen" beim Tippen, v.a. auf Mobilgeräten)
     const seit = Date.now() - (_zuletztGesendet[key] || 0);
     if (seit < 2500) return;
-    const setterMap = { rezepte: setRezepte, vorlieben: setVorlieben, kalender: setKalender, wochenplan: setWochenplan, verlauf: setVerlauf, avatarFarben: setAvatarFarbenRaw, sprueche: setSpruecheRaw, rueckblicke: setRueckblickeRaw, familie: (v) => { FAMILIE = v; setFamilieRaw(v); } };
+    const setterMap = { rezepte: setRezepte, vorlieben: setVorlieben, kalender: setKalender, wochenplan: setWochenplan, verlauf: setVerlauf, avatarFarben: setAvatarFarbenRaw, sprueche: setSpruecheRaw, rueckblicke: setRueckblickeRaw, gaeste: setGaesteRaw, familie: (v) => { FAMILIE = v; setFamilieRaw(v); } };
     const setter = setterMap[key];
     if (setter) {
       const wert = (key === "rezepte") ? migriereRezepte(value) : value;
@@ -3196,7 +3331,7 @@ function App() {
 
       {/* Content */}
       <div className="main-content">
-        {tab === "wochenplan" && <WochenplanView wochenplan={wochenplan} setWochenplan={setWochenplan} sprueche={sprueche} setSprueche={setSpruecheRaw} rueckblicke={rueckblicke} setRueckblicke={setRueckblickeRaw} rezepte={rezepte} vorlieben={vorlieben} kalender={kalender} setKalender={setKalender} verlauf={verlauf} setVerlauf={setVerlauf} />}
+        {tab === "wochenplan" && <WochenplanView wochenplan={wochenplan} setWochenplan={setWochenplan} sprueche={sprueche} setSprueche={setSpruecheRaw} rueckblicke={rueckblicke} setRueckblicke={setRueckblickeRaw} gaeste={gaeste} setGaeste={setGaesteRaw} rezepte={rezepte} vorlieben={vorlieben} kalender={kalender} setKalender={setKalender} verlauf={verlauf} setVerlauf={setVerlauf} />}
         {tab === "rezepte" && <RezepteView rezepte={rezepte} setRezepte={setRezepte} />}
         {tab === "vorlieben" && <VorliebenView vorlieben={vorlieben} setVorlieben={setVorlieben} avatarFarben={avatarFarben} setAvatarFarben={setAvatarFarben} />}
         {tab === "kalender" && <KalenderView kalender={kalender} setKalender={setKalender} />}
