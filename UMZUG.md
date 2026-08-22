@@ -13,7 +13,7 @@ Wer was macht, steht bei jedem Schritt dabei.
 
 ### Schritt 1: Datenübernahme – erledigt am 2026-08-22
 
-Geprüft: Der Supabase-Sync läuft. Ein einziger Haushalt `schoenknecht2026`, alle zehn Schlüssel aus
+Geprüft: Der Supabase-Sync läuft. Ein einziger Haushalt (Code nicht hier notieren), alle zehn Schlüssel aus
 `DATEN_KEYS` liegen in der Cloud. Der Umzug funktioniert also über den Familien-Code.
 
 Zusätzlich gebaut: **Datensicherung** im Sync-Tab, mit Export in eine JSON-Datei und Import zurück.
@@ -164,4 +164,4 @@ Preismodell und Marktvergleich: `C:\claude-projekt\Strategie\MARKETING-FAMILIENP
   `http://` hing noch im Edge-Cache von GitHub und zog eine knappe Stunde später nach.
 
 **Offen:** Screenshot für den Hero der Landingpage, Datenübernahme auf allen Geräten der Familie
-(Familien-Code `schoenknecht2026` im Sync-Tab eingeben).
+(Familien-Code im Sync-Tab eingeben – der Code steht bewusst in keiner Datei dieses Repos).

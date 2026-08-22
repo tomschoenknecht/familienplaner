@@ -72,8 +72,8 @@ Der Reichweitenplan liegt seit der Übergabe hier im Projekt: `REICHWEITE.md`.
    sie die Seite unerreichbar, weil GitHub Pages dann auf eine Domain umleitet, die nicht auflöst.
    DNS: vier A-Records auf 185.199.108–111.153, dazu `www` als CNAME auf `tomschoenknecht.github.io`.
    Nach der Propagation in den Repo-Einstellungen "Enforce HTTPS" setzen.
-3. ~~Datenübernahme beim Domainwechsel~~ – gelöst am 2026-08-22. Der Sync läuft (Haushalt
-   `schoenknecht2026`, alle zehn Schlüssel in der Cloud), und im Sync-Tab gibt es jetzt eine
+3. ~~Datenübernahme beim Domainwechsel~~ – gelöst am 2026-08-22. Der Sync läuft (Haushaltscode nicht hier notieren,
+   alle zehn Schlüssel in der Cloud), und im Sync-Tab gibt es jetzt eine
    Datensicherung mit Export und Import. Merksatz für alles Weitere: **beim Verbinden gewinnt die
    Cloud bedingungslos**, ohne Zeitstempelvergleich – ein Import bei verbundenem Code wird beim
    nächsten Verbinden überschrieben.
@@ -85,3 +85,16 @@ Der Reichweitenplan liegt seit der Übergabe hier im Projekt: `REICHWEITE.md`.
    `C:\claude-projekt\Strategie\MARKETING-FAMILIENPLANER.md`. Architekturwechsel, keine Erweiterung.
 6. **Rechtstexte fehlen vollständig.** Impressum, Datenschutz, AGB, Widerruf. Mit dem Verkauf Pflicht.
 7. **Artikel schärfen.** Die sechs Ratgebertexte liegen bei 410 bis 510 Wörtern.
+
+## Was niemals ins Repo gehört
+
+Das Repo ist öffentlich, und GitHub Pages liefert **alle** Dateien aus – auch Markdown. `CLAUDE.md`,
+`UMZUG.md` und `REICHWEITE.md` sind unter `https://zettelini.de/<dateiname>` für jeden abrufbar.
+
+Deshalb: keine Familien-Codes, keine Schlüssel, keine Zugangsdaten in irgendeiner Datei dieses
+Projekts – auch nicht in Kommentaren, Beispielen oder Platzhaltern. Der Familien-Code wirkt wie ein
+Passwort: Wer ihn kennt, liest und ändert über den öffentlichen Supabase-Anon-Key alle Daten der
+Familie. Ein Platzhalter im Eingabefeld muss ein erfundener Beispielwert sein, nie der echte.
+
+Wer so etwas doch einmal einträgt: Entfernen reicht nicht, der Wert bleibt in der Git-History. Dann
+muss das Geheimnis selbst gewechselt werden.
