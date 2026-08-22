@@ -137,3 +137,31 @@ Nicht parallel anfangen. Erst wenn die Domain steht und die Seite sauber läuft.
    mehr.
 
 Preismodell und Marktvergleich: `C:\claude-projekt\Strategie\MARKETING-FAMILIENPLANER.md`
+
+---
+
+## Durchgeführt am 2026-08-22
+
+- Domain `zettelini.de` bei INWX registriert, DNS auf GitHub Pages umgestellt (vier A-Records,
+  `www` als CNAME, TTL 300). Wildcard und Parkseiten-Records entfernt.
+- Commit `f4ee9e5` gepusht: Rebranding, Landingpage auf der Wurzel, App unter `app/`,
+  Datensicherung, robots.txt, llms.txt, CNAME.
+- Geprüft: Startseite, App, Ratgeberübersicht, Artikelseiten, robots.txt, llms.txt und sitemap.xml
+  antworten mit 200. HTTPS-Zertifikat war sofort vorhanden. Die alte Adresse
+  `tomschoenknecht.github.io/familienplaner/` leitet mit 301 auf die neue Domain um.
+- Neun URLs per IndexNow gemeldet (Antwort 202).
+
+- Google Search Console (Domain-Property) und Bing Webmaster Tools eingerichtet, Sitemap eingereicht.
+- "Enforce HTTPS" gesetzt. Die Checkbox in den Repo-Einstellungen reagierte nicht – auch nicht nach
+  erfolgreichem DNS-Check und mit ausgestelltem Zertifikat. Gesetzt wurde es schließlich über die API:
+
+      gh api -X PUT repos/tomschoenknecht/familienplaner/pages -F https_enforced=true
+
+  Das schlägt mit dem Standard-Token der CLI fehl, und zwar mit einem irreführenden 404 statt 403.
+  Vorher einmalig nötig: `gh auth refresh -h github.com -s repo`. Für die nächsten Projekte merken.
+
+  Danach leiten `www` und die alte github.io-Adresse sofort auf `https://` um; die Startseite über
+  `http://` hing noch im Edge-Cache von GitHub und zog eine knappe Stunde später nach.
+
+**Offen:** Screenshot für den Hero der Landingpage, Datenübernahme auf allen Geräten der Familie
+(Familien-Code `schoenknecht2026` im Sync-Tab eingeben).
