@@ -1,0 +1,32 @@
+# Zettelini
+
+> Wochenplaner fürs Familienessen. Eigene Rezepte, Vorlieben und Unverträglichkeiten jedes
+> Familienmitglieds, ein Anwesenheitskalender und eine Einkaufsliste, die sich aus dem Plan
+> von selbst schreibt. Läuft im Browser, ohne Konto.
+
+Zettelini beantwortet eine engere Frage als Rezeptportale: nicht "was könnte man kochen",
+sondern "was kochen wir am Mittwoch, wenn eines der Kinder beim Sport ist, eines keine
+Zwiebeln isst und der Blumenkohl weg muss". Die Rezepte bringen die Nutzer selbst mit.
+
+## Was die App kann
+
+- Wochenplan über vier Mahlzeiten: Frühstück, Brotbox, Mittagessen, Abendessen
+- Vorlieben je Person, dazu Ernährungsweise (Alles, Vegetarisch, Vegan) und acht
+  Unverträglichkeiten (Gluten, Laktose, Fruktose, Nüsse, Ei, Fisch, Soja, Schalentiere)
+- Anwesenheitskalender: wer wann fehlt, damit Mengen und Vorschläge stimmen
+- Gastkinder mit eigenen Vorlieben und eigenen Tagen
+- Einkaufsliste automatisch aus dem Plan, Mengen zusammengefasst, nach Supermarktabteilungen sortiert
+- Verlauf, damit sich Gerichte nicht ungewollt wiederholen
+- Rezepte per Foto einlesen statt abtippen
+
+## Seiten
+
+- [Startseite](https://zettelini.de/): Überblick und Einstieg
+- [Die App](https://zettelini.de/app/): der Planer selbst
+- [Ratgeber](https://zettelini.de/ratgeber/): sechs Texte zur Essensplanung im Familienalltag
+- [Wochenplan erstellen](https://zettelini.de/ratgeber/wochenplan-erstellen/)
+- [Was koche ich diese Woche](https://zettelini.de/ratgeber/was-koche-ich-diese-woche/)
+- [Einkaufsliste aus dem Plan](https://zettelini.de/ratgeber/einkaufsliste-erstellen/)
+- [Kinder essen nichts Neues](https://zettelini.de/ratgeber/kinder-essen-nichts-neues/)
+- [Brotbox-Ideen](https://zettelini.de/ratgeber/brotbox-ideen/)
+- [Meal Prep für Familien](https://zettelini.de/ratgeber/meal-prep-familie/)

@@ -1,42 +1,47 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://tomschoenknecht.github.io/familienplaner/</loc>
+    <loc>https://zettelini.de/</loc>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://tomschoenknecht.github.io/familienplaner/ratgeber/</loc>
+    <loc>https://zettelini.de/app/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://zettelini.de/ratgeber/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://tomschoenknecht.github.io/familienplaner/ratgeber/wochenplan-erstellen/</loc>
+    <loc>https://zettelini.de/ratgeber/wochenplan-erstellen/</loc>
     <changefreq>yearly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://tomschoenknecht.github.io/familienplaner/ratgeber/was-koche-ich-diese-woche/</loc>
+    <loc>https://zettelini.de/ratgeber/was-koche-ich-diese-woche/</loc>
     <changefreq>yearly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://tomschoenknecht.github.io/familienplaner/ratgeber/einkaufsliste-erstellen/</loc>
+    <loc>https://zettelini.de/ratgeber/einkaufsliste-erstellen/</loc>
     <changefreq>yearly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://tomschoenknecht.github.io/familienplaner/ratgeber/kinder-essen-nichts-neues/</loc>
+    <loc>https://zettelini.de/ratgeber/kinder-essen-nichts-neues/</loc>
     <changefreq>yearly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://tomschoenknecht.github.io/familienplaner/ratgeber/brotbox-ideen/</loc>
+    <loc>https://zettelini.de/ratgeber/brotbox-ideen/</loc>
     <changefreq>yearly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://tomschoenknecht.github.io/familienplaner/ratgeber/meal-prep-familie/</loc>
+    <loc>https://zettelini.de/ratgeber/meal-prep-familie/</loc>
     <changefreq>yearly</changefreq>
     <priority>0.7</priority>
   </url>
