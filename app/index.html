@@ -3059,6 +3059,8 @@ function SyncView({ config, setConfig, status, alleDaten }) {
     setCloudBusy(true);
     try {
       for (const k of DATEN_KEYS) {
+        // Nie undefined hochladen: das wuerde den Bereich in der Cloud loeschen.
+        if (alleDaten[k] === undefined) continue;
         await pushOne(k, alleDaten[k]);
       }
       alert("✓ Cloud erfolgreich mit den lokalen Daten überschrieben. Andere Geräte übernehmen die Daten beim nächsten Verbinden.");
@@ -3395,7 +3397,9 @@ function App() {
     }
     let aktiv = true;
     setSyncStatus("connecting");
-    const aktuelleDaten = { rezepte, vorlieben, kalender, wochenplan, verlauf, avatarFarben, sprueche, rueckblicke };
+    // Muss alle Schluessel aus DATEN_KEYS enthalten: was hier fehlt, wird beim
+    // Verbinden mit einem leeren Haushalt als NULL in die Cloud geschrieben.
+    const aktuelleDaten = { rezepte, vorlieben, kalender, wochenplan, verlauf, avatarFarben, familie, sprueche, rueckblicke, gaeste };
     const verbindungsDaten = { url: SUPABASE_URL, key: SUPABASE_ANON_KEY, household: syncConfig.household };
 
     connectSync(verbindungsDaten, applyRemote)
@@ -3413,7 +3417,8 @@ function App() {
               applyRemote(k, remote[k]);
             }
           } else {
-            await pushOne(k, aktuelleDaten[k]);  // lokale Daten in die Cloud hochladen
+            // lokale Daten in die Cloud hochladen, aber nie undefined
+            if (aktuelleDaten[k] !== undefined) await pushOne(k, aktuelleDaten[k]);
           }
         }
         if (aktiv) { setSyncStatus("online"); setInitialSyncPending(false); }
@@ -3473,7 +3478,7 @@ function App() {
         {tab === "vorlieben" && <VorliebenView vorlieben={vorlieben} setVorlieben={setVorlieben} avatarFarben={avatarFarben} setAvatarFarben={setAvatarFarben} />}
         {tab === "kalender" && <KalenderView kalender={kalender} setKalender={setKalender} />}
         {tab === "verlauf" && <VerlaufView verlauf={verlauf} vorlieben={vorlieben} />}
-        {tab === "sync" && <SyncView config={syncConfig} setConfig={setSyncConfig} status={syncStatus} alleDaten={{ rezepte, vorlieben, kalender, wochenplan, verlauf, avatarFarben }} />}
+        {tab === "sync" && <SyncView config={syncConfig} setConfig={setSyncConfig} status={syncStatus} alleDaten={{ rezepte, vorlieben, kalender, wochenplan, verlauf, avatarFarben, familie, sprueche, rueckblicke, gaeste }} />}
       </div>
     </div>
   );
