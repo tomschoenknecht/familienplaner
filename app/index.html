@@ -186,15 +186,26 @@ const KS_TAGCOL = ["#8a6410", "#9c2f4d", "#1f6280", "#4a6420", "#9a5510", "#5a3a
 // ─── Konstanten ────────────────────────────────────────────────────────────────
 // FAMILIE wird beim App-Start aus localStorage geladen und über familieAktuell verfügbar gemacht.
 // Der Fallback-Wert wird nur genutzt, wenn noch keine Einrichtung stattgefunden hat.
-let FAMILIE = ["Jette", "Ylvie", "Juliane", "Tom"];
-const FARBEN = { Jette: "#d9a9a0", Ylvie: "#c9a96e", Juliane: "#8fa888", Tom: "#8ba3b0" };
+// Beispielfamilie fuer den allerersten Start. Wird vom Willkommensdialog sofort
+// ueberschrieben. Hier stehen bewusst erfundene Namen: die Datei liegt in einem
+// oeffentlichen Repository.
+let FAMILIE = ["Mara", "Jonas", "Elif", "Ben"];
 // Auswählbare Avatar-Farben (dezente, zur warmen Palette passende Töne)
 const AVATAR_FARBPALETTE = ["#d9a9a0", "#c9a96e", "#8fa888", "#8ba3b0", "#b89bc4", "#c08552", "#9bab7a", "#a8848f"];
 // avatarFarbenAktuell wird von der App-Komponente synchron gehalten, damit alle Komponenten
 // ohne Prop-Drilling auf die vom Nutzer gewählte Avatar-Farbe zugreifen können.
 let avatarFarbenAktuell = {};
 function farbeFuer(person) {
-  return avatarFarbenAktuell[person] || FARBEN[person] || "#c9a96e";
+  if (avatarFarbenAktuell[person]) return avatarFarbenAktuell[person];
+  // Ohne eigene Wahl bekommt jedes Familienmitglied die Farbe seiner Position –
+  // so unterscheiden sich die Avatare auch bei Familien, die nie Farben gewählt haben.
+  const platz = FAMILIE.indexOf(person);
+  if (platz >= 0) return AVATAR_FARBPALETTE[platz % AVATAR_FARBPALETTE.length];
+  // Gäste stehen nicht in FAMILIE: Farbe aus dem Namen ableiten, damit sie stabil bleibt.
+  const name = String(person || "");
+  let summe = 0;
+  for (let i = 0; i < name.length; i++) summe = (summe * 31 + name.charCodeAt(i)) >>> 0;
+  return AVATAR_FARBPALETTE[summe % AVATAR_FARBPALETTE.length];
 }
 // Kürzel pro Person: erste zwei Buchstaben, bei Kollision weiter hochzählen (Je, Ju …)
 function personKuerzel(person, alle) {
@@ -638,10 +649,10 @@ const ABENTEUER_REZEPTE = [
 ];
 
 const DEFAULT_VORLIEBEN = {
-  Jette: { mag: ["Pasta", "Pizza", "Pfannkuchen"], magNicht: ["Fisch", "Scharf"] },
-  Ylvie: { mag: ["Pizza", "Süßes", "Hähnchen"], magNicht: ["Gemüse pur"] },
-  Juliane: { mag: ["Vegetarisch", "Salat", "Fisch"], magNicht: ["Fast Food"] },
-  Tom: { mag: ["Fleisch", "Grillen", "Curry"], magNicht: ["Süßes zum Hauptgang"] },
+  Mara: { mag: ["Pasta", "Auflauf", "Suppe"], magNicht: ["Scharf"] },
+  Jonas: { mag: ["Pizza", "Pfannkuchen", "Kartoffeln"], magNicht: ["Gemüse pur"] },
+  Elif: { mag: ["Vegetarisch", "Salat", "Reis"], magNicht: ["Fast Food"] },
+  Ben: { mag: ["Hähnchen", "Curry", "Nudeln"], magNicht: ["Fisch"] },
 };
 
 // ─── Storage & Sync Layer ───────────────────────────────────────────────────
@@ -2502,7 +2513,7 @@ const UNVERTRAEGLICHKEITEN = ["Gluten", "Laktose", "Fruktose", "Nüsse", "Ei", "
 const ERNAEHRUNGSWEISEN = ["Alles", "Vegetarisch", "Vegan"];
 
 function VorliebenView({ vorlieben, setVorlieben, avatarFarben, setAvatarFarben }) {
-  const [aktPerson, setAktPerson] = useState("Jette");
+  const [aktPerson, setAktPerson] = useState(() => FAMILIE[0]);
   const [magInput, setMagInput] = useState("");
   const [magNichtInput, setMagNichtInput] = useState("");
   const v = vorlieben[aktPerson] || { mag: [], magNicht: [], unvertraeglichkeiten: [], ernaehrung: "Alles" };
@@ -2701,7 +2712,7 @@ function VorliebenView({ vorlieben, setVorlieben, avatarFarben, setAvatarFarben 
 // ── Kalender ──────────────────────────────────────────────────────────────────
 
 function KalenderView({ kalender, setKalender }) {
-  const [aktPerson, setAktPerson] = useState("Jette");
+  const [aktPerson, setAktPerson] = useState(() => FAMILIE[0]);
   const [weekOffset, setWeekOffset] = useState(1);
   const weekDates = getWeekDates(weekOffset);
   const abwesenheiten = kalender[aktPerson] || [];
