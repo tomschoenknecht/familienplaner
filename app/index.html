@@ -1063,7 +1063,22 @@ function ksVersatz(tagIdx, mahlIdx) {
   };
 }
 
-function KuehlschrankZettel({ tag, datum, mahlzeitName, tagFarbe, tagCol, mahlzeit, anwesend, istTagKopf, versatz, onSlot, onTogglePerson, tauschAktiv, istGewaehlt, gast, gastKuerzel }) {
+// --- Gäste einer Woche -------------------------------------------------------
+// Gespeichert wird pro Woche eine Liste. Früher stand dort ein einzelnes Objekt;
+// gastListe() nimmt beides an, damit alte Daten nicht brechen.
+function gastListe(wert) {
+  if (!wert) return [];
+  const roh = Array.isArray(wert) ? wert : [wert];
+  return roh.filter(Boolean).map((g, i) => ({ ...g, id: g.id || "g" + i }));
+}
+// Schlüssel, unter dem ein Gast in den Vorlieben und in der Anwesenheit geführt wird.
+function gastKey(g) { return "__gast_" + g.id + "__"; }
+function istGastKey(k) { return typeof k === "string" && k.startsWith("__gast_"); }
+function gastKuerzelVon(g) {
+  return (g?.name || "?").slice(0, 2).replace(/^./, c => c.toUpperCase());
+}
+
+function KuehlschrankZettel({ tag, datum, mahlzeitName, tagFarbe, tagCol, mahlzeit, anwesend, istTagKopf, versatz, onSlot, onTogglePerson, tauschAktiv, istGewaehlt, gaesteDerWoche }) {
   const { up, down } = ksBewertung(mahlzeit);
   return (
     <div
@@ -1106,12 +1121,12 @@ function KuehlschrankZettel({ tag, datum, mahlzeitName, tagFarbe, tagCol, mahlze
                 {personKuerzel(p, FAMILIE)}
               </span>
             ))}
-            {gast && anwesend.includes("__gast__") && (
-              <span className="ks-init" title={`${gast.name} (Gast) isst mit`}
+            {(gaesteDerWoche || []).filter(g => anwesend.includes(gastKey(g))).map(g => (
+              <span key={g.id} className="ks-init" title={`${g.name} (Gast) isst mit`}
                 style={{ background: "#0d9488", color: "#fff", outline: "1.5px dashed #99f6e4", outlineOffset: 1 }}>
-                {gastKuerzel}
+                {gastKuerzelVon(g)}
               </span>
-            )}
+            ))}
             {mahlzeit.id && (up > 0 || down > 0) && (
               <span className="ks-thumbs" style={{ marginLeft: 4 }}>
                 {up > 0 && <span className="ks-thumb" title="Mag ich">👍{up}</span>}
@@ -1125,7 +1140,7 @@ function KuehlschrankZettel({ tag, datum, mahlzeitName, tagFarbe, tagCol, mahlze
   );
 }
 
-function KuehlschrankPlan({ weekDates, plan, anwesendAn, onSlot, onTogglePerson, spruch, tauschAktiv, tauschErster, gast, gastKuerzel }) {
+function KuehlschrankPlan({ weekDates, plan, anwesendAn, onSlot, onTogglePerson, spruch, tauschAktiv, tauschErster, gaesteDerWoche }) {
   return (
     <div>
       <div className="ks-legende">
@@ -1190,8 +1205,7 @@ function KuehlschrankPlan({ weekDates, plan, anwesendAn, onSlot, onTogglePerson,
                     onTogglePerson={onTogglePerson}
                     tauschAktiv={tauschAktiv}
                     istGewaehlt={istGewaehlt}
-                    gast={gast}
-                    gastKuerzel={gastKuerzel}
+                    gaesteDerWoche={gaesteDerWoche}
                   />
                 );
               })}
@@ -1220,19 +1234,37 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
   const plan = wochenplan[weekKey] || {};
   const spruch = sprueche[weekKey] || "";
 
-  // Gast der Woche: temporäres Besuchskind mit eigenen Vorlieben, das mitisst.
-  // Wird wie eine Person behandelt (Anwesenheit + Kompatibilität), aber separat gespeichert.
-  const GAST_KEY = "__gast__";
-  const gast = gaeste[weekKey] || null; // { name, ernaehrung, unvertraeglichkeiten, mahlzeiten: [] }
-  // Effektive Vorlieben inkl. Gast – so greift rezeptKompatibel/scoreRezept automatisch.
-  const vorliebenEff = gast
-    ? { ...vorlieben, [GAST_KEY]: { mag: [], magNicht: [], unvertraeglichkeiten: gast.unvertraeglichkeiten || [], ernaehrung: gast.ernaehrung || "Alles" } }
+  // Gäste der Woche: temporäre Besuchskinder mit eigenen Vorlieben, die mitessen.
+  // Jeder wird wie eine Person behandelt (Anwesenheit + Kompatibilität), aber separat gespeichert.
+  const gaesteDerWoche = gastListe(gaeste[weekKey]);
+  // Effektive Vorlieben inkl. Gäste – so greifen rezeptKompatibel/scoreRezept automatisch.
+  const vorliebenEff = gaesteDerWoche.length
+    ? gaesteDerWoche.reduce((acc, g) => {
+        acc[gastKey(g)] = { mag: [], magNicht: [], unvertraeglichkeiten: g.unvertraeglichkeiten || [], ernaehrung: g.ernaehrung || "Alles" };
+        return acc;
+      }, { ...vorlieben })
     : vorlieben;
 
-  const setzeGast = (g) => {
+  // Legt einen Gast an oder ersetzt den mit derselben id.
+  const speichereGast = (g) => {
     setGaeste(prev => {
+      const bisher = gastListe(prev[weekKey]);
+      const id = g.id || "g" + Date.now().toString(36);
+      const eintrag = { ...g, id };
+      const liste = bisher.some(x => x.id === id)
+        ? bisher.map(x => (x.id === id ? eintrag : x))
+        : [...bisher, eintrag];
+      const n = { ...prev, [weekKey]: liste };
+      save("gaeste", n);
+      return n;
+    });
+  };
+
+  const entferneGast = (id) => {
+    setGaeste(prev => {
+      const liste = gastListe(prev[weekKey]).filter(x => x.id !== id);
       const n = { ...prev };
-      if (g) n[weekKey] = g; else delete n[weekKey];
+      if (liste.length) n[weekKey] = liste; else delete n[weekKey];
       save("gaeste", n);
       return n;
     });
@@ -1280,14 +1312,14 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
       if (mahlzeit && abw.includes(`${datum}|${mahlzeit}`)) return false;
       return true;
     });
-    // Gast dazunehmen, wenn er an diesem Tag/dieser Mahlzeit mitisst
-    if (gast) {
-      const gastMahlzeiten = gast.mahlzeiten && gast.mahlzeiten.length ? gast.mahlzeiten : ["Mittagessen", "Abendessen"];
-      const gastTage = gast.tage && gast.tage.length ? gast.tage : WOCHENTAGE;
+    // Jeden Gast dazunehmen, der an diesem Tag und dieser Mahlzeit mitisst
+    gaesteDerWoche.forEach(g => {
+      const gastMahlzeiten = g.mahlzeiten && g.mahlzeiten.length ? g.mahlzeiten : ["Mittagessen", "Abendessen"];
+      const gastTage = g.tage && g.tage.length ? g.tage : WOCHENTAGE;
       const tagPasst = gastTage.includes(tag);
       const mahlzeitPasst = !mahlzeit || gastMahlzeiten.includes(mahlzeit);
-      if (tagPasst && mahlzeitPasst) anwesend.push(GAST_KEY);
-    }
+      if (tagPasst && mahlzeitPasst) anwesend.push(gastKey(g));
+    });
     return anwesend;
   };
 
@@ -1672,21 +1704,24 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
       )}
 
       <div style={{ marginBottom: 14 }}>
-        {gast ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", background: "#f0fdfa", border: "1px solid #99f6e4", borderRadius: 10, padding: "10px 16px" }}>
-            <span style={{ fontSize: 18 }}>🧒</span>
-            <span style={{ fontWeight: 700, color: "#0f766e" }}>Gast diese Woche: {gast.name}</span>
-            <span style={{ fontSize: 13, color: "#14857a" }}>
-              ({gast.ernaehrung || "Alles"}{(gast.unvertraeglichkeiten || []).length ? ", keine " + gast.unvertraeglichkeiten.join(", ") : ""})
-            </span>
-            <button onClick={() => setGastDialog(true)} style={{ ...btnStyle("#0d9488"), padding: "6px 12px", fontSize: 13, flex: "0 0 auto" }}>Bearbeiten</button>
-            <button onClick={() => setzeGast(null)} style={{ ...btnStyle("#b08968"), padding: "6px 12px", fontSize: 13, flex: "0 0 auto" }}>Entfernen</button>
+        {gaesteDerWoche.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
+            {gaesteDerWoche.map(g => (
+              <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", background: "#f0fdfa", border: "1px solid #99f6e4", borderRadius: 10, padding: "10px 16px" }}>
+                <span style={{ fontSize: 18 }}>🧒</span>
+                <span style={{ fontWeight: 700, color: "#0f766e" }}>{g.name}</span>
+                <span style={{ fontSize: 13, color: "#14857a" }}>
+                  ({g.ernaehrung || "Alles"}{(g.unvertraeglichkeiten || []).length ? ", keine " + g.unvertraeglichkeiten.join(", ") : ""})
+                </span>
+                <button onClick={() => setGastDialog(g)} style={{ ...btnStyle("#0d9488"), padding: "6px 12px", fontSize: 13, flex: "0 0 auto" }}>Bearbeiten</button>
+                <button onClick={() => entferneGast(g.id)} style={{ ...btnStyle("#b08968"), padding: "6px 12px", fontSize: 13, flex: "0 0 auto" }}>Entfernen</button>
+              </div>
+            ))}
           </div>
-        ) : (
-          <button onClick={() => setGastDialog(true)} style={{ ...btnStyle("#0d9488"), fontSize: 14, padding: "9px 16px" }}>
-            🧒 Gast hinzufügen
-          </button>
         )}
+        <button onClick={() => setGastDialog(true)} style={{ ...btnStyle("#0d9488"), fontSize: 14, padding: "9px 16px" }}>
+          🧒 {gaesteDerWoche.length ? "Weiteren Gast hinzufügen" : "Gast hinzufügen"}
+        </button>
       </div>
 
       {einkaufsliste && (
@@ -1776,8 +1811,7 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
           tauschErster={tauschErster}
           onTogglePerson={(person, datum, m) => togglePersonAnwesenheit(person, datum, m)}
           spruch={spruch}
-          gast={gast}
-          gastKuerzel={gast ? (gast.name || "?").slice(0, 2).replace(/^./, c => c.toUpperCase()) : ""}
+          gaesteDerWoche={gaesteDerWoche}
         />
       </>)}
 
@@ -1795,8 +1829,9 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
 
       {gastDialog && (
         <GastDialog
-          gast={gast}
-          onSave={(g) => { setzeGast(g); setGastDialog(false); }}
+          // true = neuer Gast, ein Objekt = dieser Gast wird bearbeitet
+          gast={gastDialog === true ? null : gastDialog}
+          onSave={(g) => { speichereGast(g); setGastDialog(false); }}
           onClose={() => setGastDialog(false)}
         />
       )}
@@ -1817,7 +1852,8 @@ function GastDialog({ gast, onSave, onClose }) {
 
   const speichern = () => {
     const n = (name || "").trim() || "Gast";
-    onSave({ name: n, ernaehrung, unvertraeglichkeiten: unvertr, tage, mahlzeiten });
+    // id mitgeben, damit beim Bearbeiten derselbe Gast ersetzt und kein zweiter angelegt wird
+    onSave({ ...(gast?.id ? { id: gast.id } : {}), name: n, ernaehrung, unvertraeglichkeiten: unvertr, tage, mahlzeiten });
   };
 
   const chip = (aktiv) => ({
@@ -1827,7 +1863,7 @@ function GastDialog({ gast, onSave, onClose }) {
   });
 
   return (
-    <Modal title="🧒 Gast diese Woche" onClose={onClose}>
+    <Modal title={gast ? "🧒 Gast bearbeiten" : "🧒 Gast diese Woche"} onClose={onClose}>
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <div>
           <div style={{ fontWeight: 700, color: "#3b2412", marginBottom: 6, fontSize: 14 }}>Name</div>
