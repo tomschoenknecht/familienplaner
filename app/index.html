@@ -639,6 +639,45 @@ const STARTER_REZEPTE = [
   { id: "r160", name: "Vollkornnudel-Salat mit Pesto", kategorie: "Gesund & Bio", dauer: 25, zutaten: [{ name: "Vollkornnudeln", menge: 240, einheit: "g" }, { name: "Cherrytomaten", menge: 250, einheit: "g" }, { name: "Rucola", menge: 100, einheit: "g" }, { name: "Pinienkerne", menge: 40, einheit: "g" }, { name: "Basilikum", menge: 0.5, einheit: "Bund" }, { name: "Parmesan", menge: 80, einheit: "g" }, { name: "Olivenöl", menge: 3, einheit: "EL" }], tags: ["Vegetarisch", "Gesund", "Meal Prep"], link: "https://www.google.com/search?q=Rezept%20Vollkornnudel-Salat%20mit%20Pesto", bewertungen: {} },
 ];
 
+// Frühstück und Brotbox greifen auf feste Vorschläge zurück, wenn die Rezeptbibliothek
+// nichts hergibt. Die Zutaten stehen hier, damit rezeptKompatibel() auch diese Vorschläge
+// gegen Unverträglichkeiten und Ernährungsweisen prüfen kann – ohne sie waren sie blind.
+// Die Listen enthalten bewusst auch vegane, laktose- und glutenfreie Varianten, sonst
+// bliebe bei strengeren Einschränkungen nichts übrig.
+// Achtung bei neuen Zutaten: Die Prüfung sucht Teilzeichenfolgen. "Hafermilch" enthält
+// "milch" und gilt damit als Laktose – deshalb heißt es hier "Haferdrink".
+const FRUEHSTUECK_OPTIONEN = [
+  { name: "Müsli mit Früchten & Joghurt", zutaten: ["Haferflocken", "Joghurt", "Beeren"] },
+  { name: "Toast mit Aufschnitt & Käse", zutaten: ["Brot", "Schinken", "Käse"] },
+  { name: "Joghurt mit Granola & Beeren", zutaten: ["Joghurt", "Haferflocken", "Beeren"] },
+  { name: "Rührei & Toast", zutaten: ["Eier", "Brot", "Butter"] },
+  { name: "Haferbrei mit Banane", zutaten: ["Haferflocken", "Milch", "Banane"] },
+  { name: "Brötchen mit Marmelade", zutaten: ["Brötchen", "Marmelade"] },
+  { name: "Porridge mit Haferdrink & Beeren", zutaten: ["Haferflocken", "Haferdrink", "Beeren"] },
+  { name: "Obstsalat mit Haferflocken", zutaten: ["Obst", "Haferflocken"] },
+  { name: "Brot mit Avocado & Tomate", zutaten: ["Brot", "Avocado", "Tomate"] },
+  { name: "Rührei mit Tomate", zutaten: ["Eier", "Tomate"] },
+];
+
+const BROTBOX_OPTIONEN = [
+  { name: "Käsebrot & Apfel", zutaten: ["Brot", "Käse", "Apfel"] },
+  { name: "Laugenbrezel & Joghurt", zutaten: ["Brezel", "Mehl", "Joghurt"] },
+  { name: "Sandwich mit Schinken", zutaten: ["Brot", "Schinken"] },
+  { name: "Wraps mit Gemüse & Frischkäse", zutaten: ["Tortilla", "Gemüse", "Frischkäse"] },
+  { name: "Brot mit Frischkäse & Gurke", zutaten: ["Brot", "Frischkäse", "Gurke"] },
+  { name: "Mini-Croissant & Trauben", zutaten: ["Mehl", "Butter", "Traube"] },
+  { name: "Brot mit Hüttenkäse & Paprika", zutaten: ["Brot", "Hüttenkäse", "Paprika"] },
+  { name: "Brot mit Erdnussbutter & Banane", zutaten: ["Brot", "Erdnuss", "Banane"] },
+  { name: "Vollkornbrot mit Käse & Tomate", zutaten: ["Brot", "Käse", "Tomate"] },
+  { name: "Körner-Brötchen mit Aufschnitt", zutaten: ["Brötchen", "Wurst"] },
+  { name: "Toast mit Avocado & Ei", zutaten: ["Brot", "Avocado", "Eier"] },
+  { name: "Bagel mit Frischkäse & Lachs", zutaten: ["Brot", "Frischkäse", "Lachs"] },
+  { name: "Knäckebrot mit Hummus", zutaten: ["Knäckebrot", "Kichererbsen"] },
+  { name: "Brot mit Avocado & Gurke", zutaten: ["Brot", "Avocado", "Gurke"] },
+  { name: "Reiswaffeln mit Gemüsesticks", zutaten: ["Reiswaffeln", "Möhre", "Paprika"] },
+  { name: "Obst & Gemüsesticks", zutaten: ["Obst", "Möhre", "Gurke"] },
+];
+
 const ABENTEUER_REZEPTE = [
   { id: "a1", name: "Okonomiyaki", kategorie: "Japan", abenteuer: "Japanisches Abenteuer", dauer: 35, zutaten: [{ name: "Kohl", menge: 300, einheit: "g" }, { name: "Eier", menge: 2, einheit: "Stück" }, { name: "Mehl", menge: 160, einheit: "g" }, { name: "Garnelen", menge: 240, einheit: "g" }, { name: "Okonomiyaki-Sauce", menge: 2, einheit: "EL" }, { name: "Mayonnaise", menge: 2, einheit: "EL" }], beschreibung: "Japanische Pfannkuchen – außen knusprig, innen weich!", link: "https://www.google.com/search?q=Rezept%20Okonomiyaki", bewertungen: {} },
   { id: "a2", name: "Shakshuka", kategorie: "Naher Osten", abenteuer: "Experiment für Mutige", dauer: 25, zutaten: [{ name: "Eier", menge: 2, einheit: "Stück" }, { name: "Tomaten", menge: 3, einheit: "Stück" }, { name: "Paprika", menge: 2, einheit: "Stück" }, { name: "Cumin", menge: 1, einheit: "TL" }, { name: "Koriander", menge: 0.4, einheit: "Bund" }, { name: "Feta", menge: 120, einheit: "g" }], beschreibung: "Pochierte Eier in würziger Tomatensauce – wie Feuer im Topf!", link: "https://www.google.com/search?q=Rezept%20Shakshuka", bewertungen: {} },
@@ -912,7 +951,7 @@ function scoreRezept(rezept, vorlieben, anwesend) {
 // Mapping: Unverträglichkeit -> Zutaten-Schlüsselwörter (lowercase)
 const UNVERTRAEGLICHKEIT_ZUTATEN = {
   "Gluten":      ["mehl", "pasta", "spaghetti", "penne", "fusilli", "farfalle", "maccaroni", "lasagneplatten", "reisnudeln", "brot", "brötchen", "semmel", "semmelbrösel", "tortilla", "wrap", "paniermehl", "fladenbrot", "hefeteig", "pizzateig", "filoteig", "croissant"],
-  "Laktose":     ["milch", "butter", "käse", "sahne", "joghurt", "parmesan", "mozzarella", "cheddar", "ricotta", "feta", "gouda", "frischkäse", "hüttenkäse", "sauerrahm", "béchamelsauce"],
+  "Laktose":     ["milch", "butter", "käse", "sahne", "joghurt", "parmesan", "mozzarella", "cheddar", "ricotta", "feta", "gouda", "frischkäse", "hüttenkäse", "sauerrahm", "béchamelsauce", "quark", "camembert", "brie", "mascarpone", "emmentaler", "skyr", "kefir", "schmand", "halloumi", "burrata", "raclette", "crème fraîche", "creme fraiche", "mozarella"],
   "Fruktose":    ["apfel", "apfelmus", "birne", "mango", "traube", "honig", "fruktose", "agavensirup", "zwiebeln", "lauch", "ketchup"],
   "Ei":          ["ei", "eier"],
   "Fisch":       ["fisch", "lachs", "thunfisch", "garnelen", "shrimps", "kabeljau", "hering", "makrele", "fischstäbchen"],
@@ -922,9 +961,18 @@ const UNVERTRAEGLICHKEIT_ZUTATEN = {
 };
 
 // Zutaten/Tags die Fleisch/Fisch signalisieren (für vegetarisch/vegan)
-const FLEISCH_ZUTATEN = ["hackfleisch", "hähnchen", "hähnchenbrust", "hähnchenfleisch", "rindfleisch", "kalbsschnitzel", "speck", "salami", "würstchen", "wurst", "schinken", "schnitzel", "steak"];
-const FISCH_ZUTATEN   = ["fisch", "lachs", "thunfisch", "garnelen", "shrimps", "kabeljau", "fischstäbchen", "makrele"];
-const TIERISCH_ZUTATEN = [...FLEISCH_ZUTATEN, ...FISCH_ZUTATEN, "milch", "butter", "käse", "sahne", "joghurt", "parmesan", "mozzarella", "cheddar", "ricotta", "feta", "gouda", "frischkäse", "hüttenkäse", "eier", "ei", "honig", "béchamelsauce"];
+// "fleisch" und "hack" stehen bewusst allein in der Liste: die Prüfung sucht Teilzeichenfolgen,
+// damit sind Hackfleisch, Rindfleisch, Schweinefleisch und Hackbraten mit abgedeckt.
+const FLEISCH_ZUTATEN = [// "hähn" und "hühn" als Stamm: deckt Hähnchen, Hähnchenbrust, Hühnchen, Hühnerbrühe ab.
+  // Die Rezeptdaten benutzen beide Schreibweisen durcheinander.
+  "fleisch", "hack", "hähn", "hühn", "huhn", "pute", "truthahn", "ente", "schwein", "rind", "kalb",
+  // "lamm" allein wäre falsch: es steckt auch in "Flammkuchen"
+  "lammfleisch", "lammfilet", "lammkotelett", "lammkeule", "lammhack", "lammrücken", "kassler", "speck", "bacon", "salami", "würstchen", "wurst", "schinken", "schnitzel", "steak", "gulasch", "frikadelle", "gyros", "döner", "chorizo", "prosciutto", "pastrami", "geflügel", "cabanossi", "mortadella", "leberkäse"];
+const FISCH_ZUTATEN   = ["fisch", "lachs", "thunfisch", "garnelen", "shrimps", "kabeljau", "fischstäbchen", "makrele", "forelle", "scholle", "zander", "dorade", "sardine", "sardelle", "anchovis", "calamari", "krabbe", "surimi", "barsch", "hecht", "karpfen", "kaviar"];
+// Leitet die Milchprodukte aus der Laktose-Liste ab, statt sie ein zweites Mal zu pflegen –
+// sonst laufen die beiden Listen mit der Zeit auseinander und "vegan" erkennt weniger als
+// "laktosefrei".
+const TIERISCH_ZUTATEN = [...FLEISCH_ZUTATEN, ...FISCH_ZUTATEN, ...UNVERTRAEGLICHKEIT_ZUTATEN["Laktose"], "eier", "ei", "honig"];
 
 function rezeptKompatibel(rezept, vorlieben, anwesend) {
   const zutatenNamen = (rezept.zutaten || []).map(z =>
@@ -1358,8 +1406,13 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
         if (anwesend.length === 0) { neuerPlan[tag][m] = null; return; }
 
         if (m === "Frühstück") {
-          const optionen = ["Müsli mit Früchten & Joghurt", "Toast mit Aufschnitt & Käse", "Joghurt mit Granola & Beeren", "Rührei & Toast", "Haferbrei mit Banane", "Brötchen mit Marmelade", "Pfannkuchen"];
-          neuerPlan[tag][m] = { name: optionen[ti % optionen.length], typ: "einfach" };
+          // Erst nach Unverträglichkeiten und Ernährungsweise der Anwesenden filtern.
+          // Bleibt nichts übrig, lieber ein unpassender Vorschlag als ein leerer Zettel.
+          const passend = FRUEHSTUECK_OPTIONEN.filter(o => rezeptKompatibel(o, vorliebenEff, anwesend));
+          const pool = passend.length > 0 ? passend : FRUEHSTUECK_OPTIONEN;
+          // Zutaten bleiben draußen: der Plan trug hier noch nie welche, und die
+          // Einkaufsliste soll sich davon nicht verändern.
+          neuerPlan[tag][m] = { name: pool[ti % pool.length].name, typ: "einfach" };
           return;
         }
         if (m === "Brotbox") {
@@ -1377,15 +1430,10 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
             neuerPlan[tag][m] = { ...bbGewählt, typ: "brotbox" };
             return;
           }
-          const brotboxOptionen = [
-            "Käsebrot & Apfel", "Laugenbrezel & Joghurt", "Sandwich mit Schinken",
-            "Wraps mit Gemüse & Frischkäse", "Brot mit Frischkäse & Gurke",
-            "Mini-Croissant & Trauben", "Brot mit Hüttenkäse & Paprika",
-            "Brot mit Erdnussbutter & Banane", "Vollkornbrot mit Käse & Tomate",
-            "Körner-Brötchen mit Aufschnitt", "Toast mit Avocado & Ei",
-            "Bagel mit Frischkäse & Lachs", "Knäckebrot mit Hummus",
-          ];
-          neuerPlan[tag][m] = { name: brotboxOptionen[Math.floor(Math.random() * brotboxOptionen.length)], typ: "brotbox" };
+          // Auch die Rückfall-Vorschläge gegen die Anwesenden prüfen.
+          const passendeBb = BROTBOX_OPTIONEN.filter(o => rezeptKompatibel(o, vorliebenEff, anwesend));
+          const bbPool = passendeBb.length > 0 ? passendeBb : BROTBOX_OPTIONEN;
+          neuerPlan[tag][m] = { name: bbPool[Math.floor(Math.random() * bbPool.length)].name, typ: "brotbox" };
           return;
         }
         if (m === "Mittagessen" && [0,1,2,3,4].includes(ti)) {
