@@ -28,9 +28,9 @@
   "isAccessibleForFree": true
 }
 </script>
-<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+<script crossorigin src="../bibliotheken/react.production.min.js"></script>
+<script crossorigin src="../bibliotheken/react-dom.production.min.js"></script>
+<script src="../bibliotheken/babel.min.js"></script>
 <style>
   html, body, #root { margin: 0; padding: 0; min-height: 100vh; }
   * { box-sizing: border-box; }
@@ -168,7 +168,7 @@
     .ks-tagspalte { flex: 0 0 165px; }
   }
 </style>
-<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../schriften/schriften.css">
 </head>
 <body>
 <div id="root"></div>
@@ -752,7 +752,7 @@ function loadSupabaseLib() {
   if (_libPromise) return _libPromise;
   _libPromise = new Promise((resolve, reject) => {
     const s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+    s.src = "../bibliotheken/supabase-js.min.js";
     s.onload = () => resolve(window.supabase);
     s.onerror = () => reject(new Error("Supabase-Bibliothek konnte nicht geladen werden"));
     document.head.appendChild(s);
@@ -3577,7 +3577,11 @@ function App() {
   // Sicherheits-Timeout: falls Sync nach 8s nicht reagiert, Ladeansicht trotzdem beenden
   // Keep-Alive: einmal beim App-Start die Datenbank berühren, damit Supabase
   // das Projekt nicht wegen Inaktivität pausiert.
-  useEffect(() => { keepAlive(); }, []);
+  // Nur wer die Synchronisation nutzt, berührt die Datenbank. Vorher lief das bei
+  // jedem Start – damit ging auch bei rein lokaler Nutzung die IP-Adresse an Supabase
+  // und die Bibliothek wurde von einem fremden CDN geladen. Ohne Familien-Code
+  // verlässt jetzt nichts das Gerät.
+  useEffect(() => { if (syncConfig?.household) keepAlive(); }, [syncConfig]);
 
   useEffect(() => {
     if (!initialSyncPending) return;
@@ -3687,6 +3691,7 @@ root.render(<App />);
 </script>
 <footer id="ratgeber-fuss" style="padding:28px 20px 40px;text-align:center;font-family:'Inter','Segoe UI',sans-serif;font-size:15px;color:#7c5c42;border-top:1px solid #ecdcc9;margin-top:32px;">
   <a href="../ratgeber/" style="color:#c2410c;text-decoration:none;font-weight:600;">Ratgeber: Wochenplan, Einkauf und Brotbox</a>
+  <div style="margin-top:10px;font-size:14px;"><a href="../impressum/" style="color:#7c5c42;text-decoration:none;">Impressum</a> · <a href="../datenschutz/" style="color:#7c5c42;text-decoration:none;">Datenschutz</a></div>
 </footer>
 </body>
 </html>

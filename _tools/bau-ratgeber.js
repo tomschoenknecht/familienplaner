@@ -191,7 +191,7 @@ function seite(a) {
   s += '  <div class="related">\n    <h3>Weiterlesen</h3>\n';
   a.verwandt.forEach(v => { s += '    <a href="../' + v + '/">' + titelVon[v] + '</a>\n'; });
   s += '  </div>\n</article>\n</div>\n\n';
-  s += '<footer>\n  <a href="../../">Zettelini</a> · <a href="../">Ratgeber</a>\n</footer>\n\n</body>\n</html>\n';
+  s += '<footer>\n  <a href="../../">Zettelini</a> · <a href="../">Ratgeber</a> · <a href="../../impressum/">Impressum</a> · <a href="../../datenschutz/">Datenschutz</a>\n</footer>\n\n</body>\n</html>\n';
   return s;
 }
 
@@ -242,7 +242,7 @@ artikel.forEach(a => {
   ue += '    </a>\n';
 });
 
-ue += '  </div>\n</div>\n\n<footer>\n  <a href="../">Zettelini</a>\n</footer>\n\n</body>\n</html>\n';
+ue += '  </div>\n</div>\n\n<footer>\n  <a href="../">Zettelini</a> · <a href="../impressum/">Impressum</a> · <a href="../datenschutz/">Datenschutz</a>\n</footer>\n\n</body>\n</html>\n';
 fs.writeFileSync(path.join(BASIS, 'ratgeber', 'index.html'), ue, 'utf8');
 console.log('geschrieben: ratgeber/index.html');
 
