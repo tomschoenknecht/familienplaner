@@ -974,6 +974,54 @@ const FISCH_ZUTATEN   = ["fisch", "lachs", "thunfisch", "garnelen", "shrimps", "
 // "laktosefrei".
 const TIERISCH_ZUTATEN = [...FLEISCH_ZUTATEN, ...FISCH_ZUTATEN, ...UNVERTRAEGLICHKEIT_ZUTATEN["Laktose"], "eier", "ei", "honig"];
 
+// Beobachtungen zur vergangenen Woche – bewusst beschreibend, nicht bewertend.
+// Die App kennt weder Nährwerte noch Mengen pro Person; alles, was darüber hinausginge,
+// wäre geraten. Deshalb steht hier, was auf dem Plan stand, und nicht, was daraus folgt.
+// Wird nur angezeigt, wenn die Familie das ausdrücklich möchte (tipps_modus).
+function wochenBeobachtungen(plan) {
+  const haupt = [];
+  Object.values(plan || {}).forEach(tag => {
+    ["Mittagessen", "Abendessen"].forEach(m => {
+      const g = tag?.[m];
+      if (g?.name && g.typ !== "info") haupt.push(g);
+    });
+  });
+  if (haupt.length < 3) return [];
+
+  const zutatenVon = g => (g.zutaten || []).map(z => (typeof z === "string" ? z : z.name || "").toLowerCase());
+  const enthaelt = (g, liste) => {
+    const z = zutatenVon(g);
+    if (z.length) return z.some(n => liste.some(s => n.includes(s)));
+    return liste.some(s => (g.name || "").toLowerCase().includes(s));
+  };
+
+  const beobachtungen = [];
+
+  const mitTier = haupt.filter(g => enthaelt(g, [...FLEISCH_ZUTATEN, ...FISCH_ZUTATEN])).length;
+  const ohneTier = haupt.length - mitTier;
+  if (ohneTier > 0 && mitTier > 0) {
+    beobachtungen.push(`${mitTier} von ${haupt.length} Hauptmahlzeiten mit Fleisch oder Fisch, ${ohneTier} ohne.`);
+  } else if (mitTier === 0) {
+    beobachtungen.push(`Alle ${haupt.length} Hauptmahlzeiten kamen ohne Fleisch und Fisch aus.`);
+  } else {
+    beobachtungen.push(`Bei allen ${haupt.length} Hauptmahlzeiten war Fleisch oder Fisch dabei.`);
+  }
+
+  const GEMUESE = ["gemüse", "möhre", "karotte", "brokkoli", "spinat", "zucchini", "paprika", "tomate", "salat", "kohl", "lauch", "sellerie", "erbse", "bohne", "kürbis", "aubergine", "gurke", "pilz", "champignon", "blumenkohl", "rosenkohl", "spargel"];
+  const mitGemuese = haupt.filter(g => enthaelt(g, GEMUESE)).length;
+  if (mitGemuese > 0) beobachtungen.push(`In ${mitGemuese} von ${haupt.length} Hauptmahlzeiten steckte Gemüse oder Salat.`);
+
+  const zaehler = {};
+  haupt.forEach(g => { zaehler[g.name] = (zaehler[g.name] || 0) + 1; });
+  const oft = Object.entries(zaehler).filter(([, n]) => n > 1).sort((a, b) => b[1] - a[1])[0];
+  if (oft) beobachtungen.push(`${oft[0]} stand ${oft[1]}-mal auf dem Plan.`);
+
+  const kats = new Set(haupt.map(g => g.kategorie).filter(Boolean));
+  if (kats.size >= 2) beobachtungen.push(`Die Gerichte kamen aus ${kats.size} verschiedenen Kategorien.`);
+
+  return beobachtungen;
+}
+
 function rezeptKompatibel(rezept, vorlieben, anwesend) {
   const zutatenNamen = (rezept.zutaten || []).map(z =>
     (typeof z === "string" ? z : z.name || "").toLowerCase()
@@ -1267,7 +1315,7 @@ function KuehlschrankPlan({ weekDates, plan, anwesendAn, onSlot, onTogglePerson,
 
 // ── Wochenplan ────────────────────────────────────────────────────────────────
 
-function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, rueckblicke, setRueckblicke, gaeste, setGaeste, rezepte, vorlieben, kalender, setKalender, verlauf, setVerlauf }) {
+function WochenplanView({ tippsModus, setTippsModus, wochenplan, setWochenplan, sprueche, setSprueche, rueckblicke, setRueckblicke, gaeste, setGaeste, rezepte, vorlieben, kalender, setKalender, verlauf, setVerlauf }) {
   const [weekOffset, setWeekOffset] = useState(1);
   const [generating, setGenerating] = useState(false);
   const [editSlot, setEditSlot] = useState(null);
@@ -1820,6 +1868,33 @@ function WochenplanView({ wochenplan, setWochenplan, sprueche, setSprueche, ruec
                     : <div style={{ fontSize: 13, color: "#b0a082" }}>Nichts Negatives</div>}
                 </div>
               </div>
+              {/* Beobachtungen zur Woche – nur nach ausdrücklicher Zustimmung.
+                  Solange niemand geantwortet hat, steht hier die Frage, sonst nichts. */}
+              {tippsModus === null && (
+                <div style={{ background: "#fff", border: "1px dashed #e8d4b8", borderRadius: 10, padding: "14px 16px", marginBottom: 12 }}>
+                  <div style={{ fontSize: 14, color: "#7c6a4c", marginBottom: 10 }}>
+                    Sollen wir dir hier ein paar Beobachtungen zu eurer Woche zeigen – etwa wie oft Fleisch auf dem Plan stand
+                    oder welches Gericht sich wiederholt hat? Reine Beobachtungen, keine Ratschläge. Du kannst das jederzeit
+                    unter „Sync“ wieder ändern.
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button onClick={() => setTippsModus("ja")} style={{ ...btnStyle("#4d7c5a"), padding: "7px 14px", fontSize: 13 }}>Ja, gerne</button>
+                    <button onClick={() => setTippsModus("nein")} style={{ ...btnStyle("#b08968"), padding: "7px 14px", fontSize: 13 }}>Nein danke</button>
+                  </div>
+                </div>
+              )}
+              {tippsModus === "ja" && (() => {
+                const beob = wochenBeobachtungen(plan);
+                if (!beob.length) return null;
+                return (
+                  <div style={{ background: "#fff", border: "1px solid #e8d4b8", borderRadius: 10, padding: "14px 16px", marginBottom: 12 }}>
+                    <div style={{ fontSize: 12, color: "#a98a5c", fontWeight: 700, marginBottom: 8 }}>BEOBACHTET</div>
+                    {beob.map((z, i) => (
+                      <div key={i} style={{ fontSize: 14, color: "#5c4a32", marginBottom: 4 }}>{z}</div>
+                    ))}
+                  </div>
+                );
+              })()}
               <textarea
                 value={rueckblickNotiz}
                 onChange={e => setzeRueckblickNotiz(e.target.value)}
@@ -3048,7 +3123,7 @@ function ApiKeyEingabe() {
   );
 }
 
-function SyncView({ config, setConfig, status, alleDaten }) {
+function SyncView({ tippsModus, setTippsModus, config, setConfig, status, alleDaten }) {
   const [code, setCode] = useState(config?.household || "");
   const [cloudBusy, setCloudBusy] = useState(false);
   const dateiFeld = React.useRef(null);
@@ -3233,6 +3308,31 @@ function SyncView({ config, setConfig, status, alleDaten }) {
         </button>
       </div>
 
+      {/* Beobachtungen zur Woche */}
+      <div style={{ background: "#fff", border: "1px solid #e8d4b8", borderRadius: 12, padding: 24, marginTop: 20 }}>
+        <h3 style={{ margin: "0 0 4px", color: "#8a5a2c" }}>Beobachtungen zur Woche</h3>
+        <p style={{ margin: "0 0 18px", fontSize: 14, color: "#64748b" }}>
+          Zeigt im Wochenrückblick, was auf dem Plan stand – wie oft Fleisch oder Fisch dabei war, in wie vielen
+          Gerichten Gemüse steckte, was sich wiederholt hat. Beschreibungen, keine Ratschläge und keine Bewertung:
+          Die App kennt weder Nährwerte noch Portionsgrößen und maßt sich deshalb kein Urteil über eure Ernährung an.
+        </p>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button onClick={() => setTippsModus("ja")}
+            style={{ ...btnStyle(tippsModus === "ja" ? "#4d7c5a" : "#cbd5e1"), fontSize: 15, padding: "10px 22px", color: tippsModus === "ja" ? "#fff" : "#475569" }}>
+            Anzeigen
+          </button>
+          <button onClick={() => setTippsModus("nein")}
+            style={{ ...btnStyle(tippsModus === "nein" ? "#b08968" : "#cbd5e1"), fontSize: 15, padding: "10px 22px", color: tippsModus === "nein" ? "#fff" : "#475569" }}>
+            Nicht anzeigen
+          </button>
+        </div>
+        {tippsModus === null && (
+          <p style={{ margin: "12px 0 0", fontSize: 13, color: "#a8a29e" }}>
+            Noch nicht entschieden – die Frage erscheint beim nächsten Wochenrückblick.
+          </p>
+        )}
+      </div>
+
       {/* Datensicherung: Export und Import */}
       <div style={{ background: "#fff", border: "1px solid #bbf7d0", borderRadius: 12, padding: 24, marginTop: 20 }}>
         <h3 style={{ margin: "0 0 4px", color: "#166534" }}>Datensicherung</h3>
@@ -3412,6 +3512,20 @@ function App() {
   const [sprueche, setSpruecheRaw] = useState(() => load("sprueche", {}));
   const [rueckblicke, setRueckblickeRaw] = useState(() => load("rueckblicke", {}));
   const [gaeste, setGaesteRaw] = useState(() => load("gaeste", {}));
+
+  // Beobachtungen zur Woche: "ja", "nein" oder null (noch nicht gefragt).
+  // Bewusst nur lokal und nicht im Sync – jede Person entscheidet das für sich,
+  // und es sind keine Daten, sondern eine Anzeigeeinstellung.
+  const [tippsModus, setTippsModusRaw] = useState(() => {
+    try { return localStorage.getItem("tipps_modus"); } catch { return null; }
+  });
+  const setTippsModus = (wert) => {
+    try {
+      if (wert) localStorage.setItem("tipps_modus", wert);
+      else localStorage.removeItem("tipps_modus");
+    } catch {}
+    setTippsModusRaw(wert);
+  };
   const [verlauf, setVerlauf] = useState(() => load("verlauf", []));
   const [avatarFarben, setAvatarFarbenRaw] = useState(() => load("avatarFarben", {}));
   // avatarFarbenAktuell (Modul-Variable) immer synchron zum State halten, damit Komponenten
@@ -3557,12 +3671,12 @@ function App() {
 
       {/* Content */}
       <div className="main-content">
-        {tab === "wochenplan" && <WochenplanView wochenplan={wochenplan} setWochenplan={setWochenplan} sprueche={sprueche} setSprueche={setSpruecheRaw} rueckblicke={rueckblicke} setRueckblicke={setRueckblickeRaw} gaeste={gaeste} setGaeste={setGaesteRaw} rezepte={rezepte} vorlieben={vorlieben} kalender={kalender} setKalender={setKalender} verlauf={verlauf} setVerlauf={setVerlauf} />}
+        {tab === "wochenplan" && <WochenplanView tippsModus={tippsModus} setTippsModus={setTippsModus} wochenplan={wochenplan} setWochenplan={setWochenplan} sprueche={sprueche} setSprueche={setSpruecheRaw} rueckblicke={rueckblicke} setRueckblicke={setRueckblickeRaw} gaeste={gaeste} setGaeste={setGaesteRaw} rezepte={rezepte} vorlieben={vorlieben} kalender={kalender} setKalender={setKalender} verlauf={verlauf} setVerlauf={setVerlauf} />}
         {tab === "rezepte" && <RezepteView rezepte={rezepte} setRezepte={setRezepte} />}
         {tab === "vorlieben" && <VorliebenView vorlieben={vorlieben} setVorlieben={setVorlieben} avatarFarben={avatarFarben} setAvatarFarben={setAvatarFarben} />}
         {tab === "kalender" && <KalenderView kalender={kalender} setKalender={setKalender} />}
         {tab === "verlauf" && <VerlaufView verlauf={verlauf} vorlieben={vorlieben} />}
-        {tab === "sync" && <SyncView config={syncConfig} setConfig={setSyncConfig} status={syncStatus} alleDaten={{ rezepte, vorlieben, kalender, wochenplan, verlauf, avatarFarben, familie, sprueche, rueckblicke, gaeste }} />}
+        {tab === "sync" && <SyncView tippsModus={tippsModus} setTippsModus={setTippsModus} config={syncConfig} setConfig={setSyncConfig} status={syncStatus} alleDaten={{ rezepte, vorlieben, kalender, wochenplan, verlauf, avatarFarben, familie, sprueche, rueckblicke, gaeste }} />}
       </div>
     </div>
   );
