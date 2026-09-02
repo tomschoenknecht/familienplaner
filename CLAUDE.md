@@ -77,13 +77,15 @@ Der Reichweitenplan liegt seit der Übergabe hier im Projekt: `REICHWEITE.md`.
    Datensicherung mit Export und Import. Merksatz für alles Weitere: **beim Verbinden gewinnt die
    Cloud bedingungslos**, ohne Zeitstempelvergleich – ein Import bei verbundenem Code wird beim
    nächsten Verbinden überschrieben.
-4. **Bild für die Landingpage.** Im Hero steht ein Platzhalter, dort gehört ein Screenshot des
-   Wochenplans hin.
+4. ~~Bild für die Landingpage~~ – erledigt am 2026-08-23. Screenshot des Wochenplans im Hero,
+   eigene Fassung fürs Handy, dazu ein Vorschaubild für geteilte Links (`bilder/`).
 5. **Monetarisierung** ist beschlossen (2026-08-21). Zwei Stufen, gratis plus 29 EUR im Jahr für Sync
    und Foto-Rezepterkennung. Das erzwingt Auth, einen serverseitigen KI-Aufruf, Stripe und die
    Rechtstexte – Einzelheiten und Marktvergleich in
    `C:\claude-projekt\Strategie\MARKETING-FAMILIENPLANER.md`. Architekturwechsel, keine Erweiterung.
-6. **Rechtstexte fehlen vollständig.** Impressum, Datenschutz, AGB, Widerruf. Mit dem Verkauf Pflicht.
+6. **Rechtstexte:** Impressum und Datenschutzerklärung sind seit 2026-08-26 live und vollständig
+   (`impressum/`, `datenschutz/`), verlinkt aus jeder Seite. Offen bleiben AGB und Widerrufs-
+   belehrung – die werden erst mit dem Verkauf Pflicht.
 7. **Artikel schärfen.** Die sechs Ratgebertexte liegen bei 410 bis 510 Wörtern.
 
 ## Was niemals ins Repo gehört
@@ -98,3 +100,13 @@ Familie. Ein Platzhalter im Eingabefeld muss ein erfundener Beispielwert sein, n
 
 Wer so etwas doch einmal einträgt: Entfernen reicht nicht, der Wert bleibt in der Git-History. Dann
 muss das Geheimnis selbst gewechselt werden.
+
+## Keine Drittanbieter beim Aufruf
+
+Stand 2026-08-26: Startseite und Planer erzeugen null Anfragen an Dritte. Schriften liegen unter
+`schriften/`, React, Babel und die Supabase-Bibliothek unter `bibliotheken/`. Die Aufwärmanfrage an
+Supabase (`keepAlive`) läuft nur bei vorhandenem Familien-Code.
+
+Das ist kein Zufall, sondern die Grundlage der Datenschutzerklärung. Wer hier eine Schriftart, ein
+Skript oder ein Bild von einem fremden Server einbindet, macht die Aussage dort falsch – und handelt
+sich das Abmahnrisiko ein, das der Google-Fonts-Einbindung anhing.
