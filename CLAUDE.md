@@ -3,9 +3,9 @@
 Essensplanung für Familien: Rezeptauswahl nach Vorlieben, Wochenplan, automatische Einkaufsliste,
 Frühstück und Brotbox.
 
-**Marke: Zettelini**, gewählt am 2026-08-21. Domain `zettelini.de` (Registrar INWX, noch nicht
-registriert – Stand 2026-08-21). Bis dahin läuft alles unter
-https://tomschoenknecht.github.io/familienplaner/ . Verworfene Namen samt Begründung stehen in
+**Marke: Zettelini**, gewählt am 2026-08-21. **Live unter https://zettelini.de** seit 2026-08-22
+(Registrar und DNS: INWX, Hosting GitHub Pages, HTTPS erzwungen). Die alte Adresse
+`tomschoenknecht.github.io/familienplaner/` leitet mit 301 dorthin um. Verworfene Namen samt Begründung stehen in
 `C:\claude-projekt\Strategie\MARKETING-FAMILIENPLANER.md` – nicht neu aufrollen.
 
 ## Stack und Struktur
@@ -14,8 +14,12 @@ Kein Build-Schritt, kein Server.
 
 - `index.html` – die Landingpage (statisches HTML, eigenes CSS inline). Liegt auf der Wurzel, damit
   geteilte Links und Suchmaschinen dort ankommen und nicht direkt in der App.
-- `app/index.html` – die komplette App. React 18 und Babel werden über unpkg im Browser geladen, der
-  Code steht in einem `<script type="text/babel">` direkt in der Datei. Daten liegen im localStorage.
+- `app/index.html` – die komplette App. React 18 und Babel liegen lokal unter `bibliotheken/` und
+  werden im Browser ausgeführt; der Code steht in einem `<script type="text/babel">` direkt in der
+  Datei. Daten liegen im localStorage.
+- `schriften/`, `bibliotheken/` – lokal ausgelieferte Schriften und Programmbibliotheken. Siehe
+  Abschnitt "Keine Drittanbieter beim Aufruf" weiter unten.
+- `impressum/`, `datenschutz/` – Rechtstexte, aus jeder Seite verlinkt, auf noindex gesetzt.
 - `ratgeber/` – öffentliche Inhaltsseiten (statisches HTML, kein React). Gemeinsames Stylesheet
   `ratgeber/ratgeber.css`, Farbklima aus der App: `#c2410c` Akzent, `#3b2412` Text, `#fffaf5` Grund.
 - `sitemap.xml` – neun URLs, wird vom Bau-Skript geschrieben.
@@ -68,10 +72,9 @@ Der Reichweitenplan liegt seit der Übergabe hier im Projekt: `REICHWEITE.md`.
 1. **Keine Personas – und das bleibt so.** Tom hat die Persona-Pflicht aus der globalen CLAUDE.md für
    diese App am 2026-08-21 ausdrücklich ausgesetzt. Nicht erneut anstoßen. Folge: alle inhaltlichen
    Aussagen über die Zielgruppe sind Annahme, nicht Befund.
-2. **`zettelini.de` bei INWX registrieren.** Erst danach die `CNAME`-Datei ins Repo – vorher macht
-   sie die Seite unerreichbar, weil GitHub Pages dann auf eine Domain umleitet, die nicht auflöst.
-   DNS: vier A-Records auf 185.199.108–111.153, dazu `www` als CNAME auf `tomschoenknecht.github.io`.
-   Nach der Propagation in den Repo-Einstellungen "Enforce HTTPS" setzen.
+2. ~~`zettelini.de` registrieren~~ – erledigt am 2026-08-22. DNS bei INWX auf GitHub Pages,
+   `CNAME` im Repo, HTTPS erzwungen (die Checkbox reagierte nicht, gesetzt per
+   `gh api -X PUT repos/.../pages -F https_enforced=true` nach `gh auth refresh -s repo`).
 3. ~~Datenübernahme beim Domainwechsel~~ – gelöst am 2026-08-22. Der Sync läuft (Haushaltscode nicht hier notieren,
    alle zehn Schlüssel in der Cloud), und im Sync-Tab gibt es jetzt eine
    Datensicherung mit Export und Import. Merksatz für alles Weitere: **beim Verbinden gewinnt die
