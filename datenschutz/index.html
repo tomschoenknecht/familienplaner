@@ -8,6 +8,7 @@
 <meta name="robots" content="noindex, follow">
 <link rel="canonical" href="https://zettelini.de/datenschutz/">
 <link rel="stylesheet" href="../ratgeber/ratgeber.css">
+<script defer src="../zaehler.js"></script>
 </head>
 <body>
 
@@ -36,12 +37,44 @@
 
   <h2>Was nicht stattfindet</h2>
   <p>
-    Diese Website setzt keine Cookies. Es gibt keine Analyse- oder Statistikwerkzeuge, keine
-    Werbenetzwerke, keine Social-Media-Plugins und keine Weitergabe von Daten zu Werbezwecken.
-    Sämtliche Schriften und Programmbibliotheken liegen auf dem eigenen Server; beim Aufruf der
-    Seiten und beim Öffnen des Planers entsteht deshalb keine Verbindung zu Google oder einem
-    anderen Inhaltsnetzwerk. Solange ihr die Synchronisation nicht einschaltet, verlässt kein
-    einziges Datum euer Gerät.
+    Diese Website setzt keine Cookies. Es gibt keine Werbenetzwerke, keine Social-Media-Plugins,
+    keine Dienste von Google oder anderen Anbietern für Statistik oder Reichweitenmessung, und keine
+    Weitergabe von Daten zu Werbezwecken. Sämtliche Schriften und Programmbibliotheken liegen auf dem
+    eigenen Server; beim Aufruf der Seiten und beim Öffnen des Planers entsteht deshalb keine
+    Verbindung zu Google oder einem anderen Inhaltsnetzwerk.
+  </p>
+  <p>
+    Eine schlichte Aufrufzählung gibt es allerdings, und sie ist im nächsten Abschnitt beschrieben.
+    Eure Inhalte im Planer sind davon nicht berührt: Solange ihr die Synchronisation nicht
+    einschaltet, verlässt keiner eurer Pläne, keines eurer Rezepte und keine Angabe zu eurer Familie
+    das Gerät.
+  </p>
+
+  <h2>Aufrufzählung</h2>
+  <p>
+    Ich möchte wissen, ob meine Seiten überhaupt jemanden erreichen. Dafür wird bei jedem Aufruf ein
+    Eintrag in einer eigenen Tabelle bei Supabase gespeichert. Dieser Eintrag besteht aus vier
+    Angaben und sonst nichts:
+  </p>
+  <ul>
+    <li>Zeitpunkt des Aufrufs</li>
+    <li>der aufgerufene Pfad, etwa <code>/ratgeber/brotbox-ideen/</code></li>
+    <li>die Domain, von der ihr kamt, etwa <code>google.com</code> – nie die vollständige Adresse</li>
+    <li>ein Kampagnenwert, falls ihr über einen gekennzeichneten Link kamt, etwa <code>ig-bio</code></li>
+  </ul>
+  <p>
+    <strong>Was dabei ausdrücklich nicht passiert:</strong> Es wird kein Cookie gesetzt und nichts in
+    eurem Browserspeicher abgelegt oder ausgelesen. Es gibt keine Besucherkennung, keinen
+    Geräteabdruck und keine Wiedererkennung – zwei Aufrufe derselben Person sind für mich nicht von
+    zwei Aufrufen verschiedener Personen zu unterscheiden. Eure IP-Adresse wird nicht gespeichert.
+    Ich sehe deshalb Seitenaufrufe, aber keine Menschen.
+  </p>
+  <p>
+    Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO; mein berechtigtes Interesse liegt darin,
+    einschätzen zu können, ob und über welchen Weg die Seite gefunden wird. Weil kein Zugriff auf
+    Informationen in eurem Endgerät stattfindet, ist keine Einwilligung nach § 25 TDDDG erforderlich
+    – und deshalb bekommt ihr hier auch kein Zustimmungsbanner vorgesetzt. Die Einträge werden nach
+    sechs Monaten gelöscht.
   </p>
 
   <h2>Aufruf der Website (Hosting)</h2>
@@ -142,7 +175,7 @@
 
   <h2>Stand</h2>
   <p>
-    Diese Erklärung hat den Stand vom 26. August 2026. Bei Änderungen an der App
+    Diese Erklärung hat den Stand vom 3. September 2026. Bei Änderungen an der App
     aktualisiere ich sie entsprechend.
   </p>
 </article>

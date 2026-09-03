@@ -144,6 +144,7 @@ function kopf(a) {
     '<meta property="og:description" content="' + a.kurz + '">',
     '<meta name="twitter:card" content="summary">',
     '<link rel="stylesheet" href="../ratgeber.css">',
+    '<script defer src="../../zaehler.js"></' + 'script>',
     '<script type="application/ld+json">',
     JSON.stringify(ld, null, 2),
     '<\/script>',
@@ -152,7 +153,7 @@ function kopf(a) {
     '',
     '<header class="nav">',
     '  <a class="nav-brand" href="../../">Zettelini</a>',
-    '  <a class="nav-cta" href="../../app/">Planer öffnen</a>',
+    '  <a class="nav-cta" href="../../app/?von=ratgeber">Planer öffnen</a>',
     '</header>',
     ''
   ].join('\n');
@@ -187,7 +188,7 @@ function seite(a) {
   });
   s += '  <hr class="sep">\n\n';
   s += '  <p>' + a.schluss + '</p>\n\n';
-  s += '  <div class="cta-box">\n    <p>' + a.cta + '</p>\n    <a class="cta-btn" href="../../app/">Planer öffnen</a>\n  </div>\n\n';
+  s += '  <div class="cta-box">\n    <p>' + a.cta + '</p>\n    <a class="cta-btn" href="../../app/?von=artikel">Planer öffnen</a>\n  </div>\n\n';
   s += '  <div class="related">\n    <h3>Weiterlesen</h3>\n';
   a.verwandt.forEach(v => { s += '    <a href="../' + v + '/">' + titelVon[v] + '</a>\n'; });
   s += '  </div>\n</article>\n</div>\n\n';
@@ -220,12 +221,13 @@ let ue = [
   '<meta property="og:title" content="Ratgeber: Wochenplan, Einkauf und Brotbox">',
   '<meta property="og:description" content="Essensplanung für Familien, von der Wochenstruktur bis zur Brotbox.">',
   '<link rel="stylesheet" href="ratgeber.css">',
+  '<script defer src="../zaehler.js"></' + 'script>',
   '</head>',
   '<body>',
   '',
   '<header class="nav">',
   '  <a class="nav-brand" href="../">Zettelini</a>',
-  '  <a class="nav-cta" href="../app/">Planer öffnen</a>',
+  '  <a class="nav-cta" href="../app/?von=ratgeber">Planer öffnen</a>',
   '</header>',
   '',
   '<div class="wrap">',

@@ -104,12 +104,30 @@ Familie. Ein Platzhalter im Eingabefeld muss ein erfundener Beispielwert sein, n
 Wer so etwas doch einmal einträgt: Entfernen reicht nicht, der Wert bleibt in der Git-History. Dann
 muss das Geheimnis selbst gewechselt werden.
 
-## Keine Drittanbieter beim Aufruf
+## Keine fremden Drittanbieter beim Aufruf
 
-Stand 2026-08-26: Startseite und Planer erzeugen null Anfragen an Dritte. Schriften liegen unter
-`schriften/`, React, Babel und die Supabase-Bibliothek unter `bibliotheken/`. Die Aufwärmanfrage an
-Supabase (`keepAlive`) läuft nur bei vorhandenem Familien-Code.
+Stand 2026-09-03: Schriften liegen unter `schriften/`, React, Babel und die Supabase-Bibliothek unter
+`bibliotheken/`. Es wird nichts von Google, unpkg, jsdelivr oder einem anderen fremden Server geladen.
+
+Zwei Verbindungen zu Supabase gibt es – und nur zu Supabase, das ohnehin Teil der Anwendung ist:
+
+1. **Aufrufzähler** (`zaehler.js`, eingebunden auf jeder Seite): schreibt bei jedem Aufruf
+   Zeitstempel, Pfad, Verweis-Domain und Kampagnenwert in die Tabelle `aufrufe`. Kein Cookie, kein
+   Speicherzugriff, keine Kennung, keine IP. Schema, Row Level Security und Auswertungsabfragen
+   stehen in `_tools/zaehler.sql`.
+2. **Aufwärmanfrage** (`keepAlive`): läuft nur bei vorhandenem Familien-Code.
 
 Das ist kein Zufall, sondern die Grundlage der Datenschutzerklärung. Wer hier eine Schriftart, ein
 Skript oder ein Bild von einem fremden Server einbindet, macht die Aussage dort falsch – und handelt
 sich das Abmahnrisiko ein, das der Google-Fonts-Einbindung anhing.
+
+Und wer den Zähler erweitert, muss die Rechtslage mitdenken: Sobald eine Besucherkennung oder ein
+Zugriff auf den Endgerätespeicher dazukommt, greift § 25 TDDDG und es braucht ein
+Einwilligungsbanner. Genau deshalb zählt er anonym.
+
+## Kampagnenparameter
+
+`?via=<wert>` kennzeichnet die Herkunft von außen (Instagram sendet im eigenen Browser meist keinen
+Verweis). `?von=<wert>` markiert Wege innerhalb der Seite; gesetzt ist das an den Planer-Knöpfen der
+Landingpage (`von=start`) und der Ratgeberseiten (`von=ratgeber`, `von=artikel`). Beide Parameter
+nimmt `zaehler.js` per `history.replaceState` wieder aus der Adresszeile.
