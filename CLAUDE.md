@@ -91,18 +91,26 @@ Der Reichweitenplan liegt seit der Übergabe hier im Projekt: `REICHWEITE.md`.
    belehrung – die werden erst mit dem Verkauf Pflicht.
 7. **Artikel schärfen.** Die sechs Ratgebertexte liegen bei 410 bis 510 Wörtern.
 
-## Offener Sicherheitsbefund (2026-09-03)
+## Zugriffsschutz der Familiendaten (Stand 2026-09-04)
 
-**Die Tabelle `familienplaner_data` ist mit dem öffentlichen Anon-Schlüssel ohne Familien-Code
-lesbar.** Gemessen: eine GET-Anfrage liefert Zeilen aus allen Haushalten. Der Familien-Code schützt
-also nichts – man muss ihn nicht kennen, man kann ihn abfragen.
+Die Tabelle `familienplaner_data` war bis zum 2026-09-04 für jeden lesbar, änderbar und löschbar:
+Die Regel hieß "Familienzugriff" und lautete ALL / public / true. Der Familien-Code war nur ein
+Filter im Client, kein Schutz – man konnte ihn abfragen, statt ihn kennen zu müssen.
 
-Folgen: Der geplante Codewechsel bringt fast nichts, und vor dem ersten fremden Nutzer muss das
-behoben sein. Befund, offene Prüfpunkte und die Wege zur Absicherung stehen in
-`C:\claude-projekt\Strategie\SICHERHEIT-ZETTELINI.md`. Nicht ins Repo kopieren.
+**Jetzt prüft die Datenbankregel den Code aus der Kopfzeile `x-haushalt`.** Die App setzt sie in
+`connectSync` und `keepAlive`. Ohne oder mit falscher Kopfzeile kommen keine Zeilen zurück,
+nachgewiesen am 2026-09-04.
 
-Die neue Tabelle `aufrufe` ist korrekt abgesichert (INSERT ja, SELECT und DELETE nein) und dient
-als Vorlage, wie es aussehen soll.
+Zwei Folgen, die beim Weiterbauen zählen:
+
+1. **Der Realtime-Kanal ist stumm.** Er sendet keine eigenen Kopfzeilen und sieht deshalb keine
+   Zeilen. Der Code bleibt stehen und greift wieder, sobald echte Konten da sind. Bis dahin wird
+   beim Verbinden abgeglichen, nicht laufend.
+2. **Wer den Code kennt, kommt weiterhin an die Daten.** Er steht im localStorage und reist bei
+   jeder Anfrage mit. Die saubere Lösung sind Konten über Supabase Magic Link – siehe
+   Monetarisierung. Bis dahin ist ein langer, zufälliger Code die halbe Miete.
+
+Einzelheiten und der Nachweis: `C:\claude-projekt\Strategie\SICHERHEIT-ZETTELINI.md`.
 
 ## Was niemals ins Repo gehört
 
