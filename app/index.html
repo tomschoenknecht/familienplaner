@@ -763,9 +763,24 @@ function loadSupabaseLib() {
 
 async function connectSync({ url, key, household }, onRemote) {
   const lib = await loadSupabaseLib();
-  _sb = lib.createClient(url, key);
+  // Der Familien-Code reist als Kopfzeile mit. Die Datenbankregel prüft ihn und gibt
+  // ausschließlich die Zeilen dieses Haushalts frei – wer keinen oder einen falschen
+  // Code schickt, sieht nichts. Vorher stand in der Regel schlicht "true": Damit konnte
+  // jeder mit dem öffentlichen Schlüssel alle Haushalte lesen, ändern und löschen.
+  _sb = lib.createClient(url, key, {
+    global: { headers: { "x-haushalt": household } }
+  });
   _household = household;
-  // Realtime-Abo für diesen Haushalt
+  // Realtime-Abo für diesen Haushalt.
+  //
+  // ACHTUNG: Seit die Datenbankregel den Familien-Code aus der Kopfzeile prüft, liefert
+  // dieser Kanal nichts mehr – der Realtime-Dienst schickt keine eigenen Kopfzeilen mit
+  // und sieht deshalb keine Zeilen. Er bleibt hier stehen, weil er nicht stört und weil
+  // er wieder greift, sobald echte Konten da sind (dann prüft die Regel die angemeldete
+  // Person, und das Anmeldemerkmal reist beim Realtime-Dienst mit).
+  //
+  // Bis dahin gleicht die App beim Verbinden ab, nicht laufend: Änderungen auf einem
+  // zweiten Gerät erscheinen beim nächsten Öffnen, nicht sofort.
   _channel = _sb
     .channel("familienplaner-" + household)
     .on("postgres_changes",
@@ -801,10 +816,15 @@ async function pushOne(key, value) {
 // Keep-Alive: minimaler DB-Zugriff bei jedem App-Start, damit Supabase das
 // Projekt nicht wegen Inaktivität pausiert (Free-Tier: Pause nach 7 Tagen ohne Aktivität).
 // Läuft unabhängig vom Haushalt und still im Hintergrund; Fehler werden ignoriert.
-async function keepAlive() {
+// Hält das Supabase-Projekt wach, damit es nicht wegen Untätigkeit pausiert.
+// Braucht denselben Kopfzeilen-Code wie connectSync, sonst gibt die Datenbankregel
+// nichts frei und die Anfrage liefe ins Leere.
+async function keepAlive(household) {
   try {
     const lib = await loadSupabaseLib();
-    const sb = _sb || lib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const sb = _sb || lib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { "x-haushalt": household || "" } }
+    });
     await sb.from("familienplaner_data").select("key").limit(1);
   } catch {}
 }
@@ -3582,7 +3602,7 @@ function App() {
   // jedem Start – damit ging auch bei rein lokaler Nutzung die IP-Adresse an Supabase
   // und die Bibliothek wurde von einem fremden CDN geladen. Ohne Familien-Code
   // verlässt jetzt nichts das Gerät.
-  useEffect(() => { if (syncConfig?.household) keepAlive(); }, [syncConfig]);
+  useEffect(() => { if (syncConfig?.household) keepAlive(syncConfig.household); }, [syncConfig]);
 
   useEffect(() => {
     if (!initialSyncPending) return;
