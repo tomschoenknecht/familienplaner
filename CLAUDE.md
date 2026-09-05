@@ -54,7 +54,11 @@ Vor dem Push die Änderung zeigen und Freigabe abwarten.
   ergänzen, in `ratgeber/index.html` als Karte eintragen, in `sitemap.xml` aufnehmen und per IndexNow
   melden. Das Generierungsskript für die bestehenden sechs Artikel liegt unter
   `_tools/bau-ratgeber.js` – Artikeldaten oben im Array ergänzen und `node _tools/bau-ratgeber.js`
-  ausführen, das schreibt Artikelseiten, Übersicht und Sitemap neu.
+  ausführen, das schreibt Artikelseiten, Übersicht und Sitemap neu. Ein Abschnitt kennt `p`
+  (Absätze), `liste` (Aufzählung) und `tabelle`; dazu gibt es je Artikel `faq` mit Frage und
+  Antwort, das als Frageblock und als FAQPage-Auszeichnung ausgegeben wird. Fließtext darf HTML
+  enthalten (etwa Links auf andere Artikel), Titel und Beschreibung nicht – die wandern in
+  Attribute und werden escapt.
 - Keine Emojis. Echte Umlaute, nie ae/oe/ue/ss.
 
 ## Strategie und Kontext
@@ -89,7 +93,9 @@ Der Reichweitenplan liegt seit der Übergabe hier im Projekt: `REICHWEITE.md`.
 6. **Rechtstexte:** Impressum und Datenschutzerklärung sind seit 2026-08-26 live und vollständig
    (`impressum/`, `datenschutz/`), verlinkt aus jeder Seite. Offen bleiben AGB und Widerrufs-
    belehrung – die werden erst mit dem Verkauf Pflicht.
-7. **Artikel schärfen.** Die sechs Ratgebertexte liegen bei 410 bis 510 Wörtern.
+7. ~~Artikel schärfen~~ – erledigt am 2026-09-05. Die sechs Texte liegen jetzt bei 680 bis 970
+   Wörtern (vorher 400 bis 520), jeder mit einem Frageblock am Ende, der zusätzlich als FAQPage
+   ausgezeichnet ist. Neu ist auch die Verlinkung untereinander im Fließtext.
 
 ## Zugriffsschutz der Familiendaten (Stand 2026-09-04)
 
