@@ -42,6 +42,7 @@ const artikel = [
   },
   {
     slug: 'was-koche-ich-diese-woche',
+    seitentitel: 'Was koche ich diese Woche? So entscheidest du',
     titel: 'Was koche ich diese Woche? Ein Vorgehen statt einer Rezeptliste',
     kurz: 'Die Frage ist keine Ideenfrage. Sie ist eine Entscheidungsfrage.',
     beschreibung: 'Warum Rezeptlisten bei der Frage "Was koche ich diese Woche" nicht helfen – und wie eine Stammliste aus 20 Gerichten die Planung in zehn Minuten erledigt.',
@@ -67,6 +68,7 @@ const artikel = [
   },
   {
     slug: 'einkaufsliste-erstellen',
+    seitentitel: 'Einkaufsliste aus dem Essensplan erstellen',
     titel: 'Einkaufsliste aus dem Essensplan: warum die Reihenfolge entscheidet',
     kurz: 'Erst der Plan, dann die Liste. Andersherum kaufst du doppelt.',
     beschreibung: 'Wie aus dem Wochenplan eine Einkaufsliste wird, die nichts vergisst und nichts doppelt kauft – sortiert nach Ladenwegen statt nach Gerichten.',
@@ -117,6 +119,7 @@ const artikel = [
   },
   {
     slug: 'brotbox-ideen',
+    seitentitel: 'Brotbox für die Schulwoche: der Baukasten',
     titel: 'Brotbox für die Schulwoche: ein Baukasten statt täglicher Ideen',
     kurz: 'Vier Bausteine, jeden Morgen neu kombiniert.',
     beschreibung: 'Brotbox-Ideen für die Schulwoche als System: vier Bausteine kombinieren, am Vorabend vorbereiten, und wissen, was bis zur großen Pause hält.',
@@ -142,6 +145,7 @@ const artikel = [
   },
   {
     slug: 'meal-prep-familie',
+    seitentitel: 'Meal Prep für Familien im Alltag',
     titel: 'Meal Prep für Familien: was im Alltag wirklich funktioniert',
     kurz: 'Komponenten vorbereiten statt fünf fertige Boxen stapeln.',
     beschreibung: 'Meal Prep mit Kindern funktioniert anders als auf Instagram: Warum Komponenten-Vorbereitung im Familienalltag trägt und fertige Menüboxen scheitern.',
@@ -206,14 +210,14 @@ function kopf(a) {
     '<head>',
     '<meta charset="UTF-8">',
     '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
-    '<title>' + esc(a.titel) + ' | Zettelini</title>',
+    '<title>' + esc(a.seitentitel || a.titel) + ' | Zettelini</title>',
     '<meta name="description" content="' + esc(a.beschreibung) + '">',
     '<link rel="canonical" href="' + url + '">',
     '<meta property="og:type" content="article">',
     '<meta property="og:site_name" content="Zettelini">',
     '<meta property="og:locale" content="de_DE">',
     '<meta property="og:url" content="' + url + '">',
-    '<meta property="og:title" content="' + esc(a.titel) + '">',
+    '<meta property="og:title" content="' + esc(a.seitentitel || a.titel) + '">',
     '<meta property="og:description" content="' + esc(a.kurz) + '">',
     '<meta name="twitter:card" content="summary">',
     '<link rel="stylesheet" href="../ratgeber.css">',

@@ -59,6 +59,10 @@ Vor dem Push die Änderung zeigen und Freigabe abwarten.
   Antwort, das als Frageblock und als FAQPage-Auszeichnung ausgegeben wird. Fließtext darf HTML
   enthalten (etwa Links auf andere Artikel), Titel und Beschreibung nicht – die wandern in
   Attribute und werden escapt.
+- Nach Aenderungen an Seiten oder Verweisen `node _tools/pruefe-seiten.js` laufen lassen. Das
+  prueft alle elf ausgelieferten Seiten auf tote Verweise, doppelte oder zu lange Titel, fehlende
+  Canonicals, Bilder ohne alt-Text und aufgebrochene Attribute. Geprueft wird der Arbeitsstand,
+  nicht die veroeffentlichte Seite.
 - Keine Emojis. Echte Umlaute, nie ae/oe/ue/ss.
 
 ## Strategie und Kontext
@@ -115,6 +119,10 @@ Zwei Folgen, die beim Weiterbauen zählen:
 2. **Wer den Code kennt, kommt weiterhin an die Daten.** Er steht im localStorage und reist bei
    jeder Anfrage mit. Die saubere Lösung sind Konten über Supabase Magic Link – siehe
    Monetarisierung. Bis dahin ist ein langer, zufälliger Code die halbe Miete.
+
+`node _tools/pruefe-zugriffsschutz.js` weist das jederzeit nach: ohne Code, mit falschem Code
+und beim Schreibversuch unter fremdem Code darf nichts durchkommen. Das Skript enthaelt keine
+Geheimnisse und gehoert nach jeder Aenderung an der Datenbankregel einmal ausgefuehrt.
 
 Einzelheiten und der Nachweis: `C:\claude-projekt\Strategie\SICHERHEIT-ZETTELINI.md`.
 
