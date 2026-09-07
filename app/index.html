@@ -28,6 +28,46 @@
   "isAccessibleForFree": true
 }
 </script>
+<script>
+// Ein weisser Bildschirm ist die schlechteste Fehlermeldung, die es gibt. Wenn die App
+// nicht startet - zu alter Browser, abgebrochener Download, zu wenig Speicher -, soll
+// wenigstens dastehen, woran es lag. Der Block steht bewusst vor den Bibliotheken,
+// damit er auch deren Ladefehler mitbekommt.
+(function () {
+  var gezeigt = false;
+  function startfehler(ueberschrift, hinweis, technisch) {
+    if (gezeigt) return;
+    var wurzel = document.getElementById("root");
+    if (!wurzel || wurzel.children.length > 0) return;
+    gezeigt = true;
+    wurzel.innerHTML =
+      '<div style="font-family: system-ui, sans-serif; max-width: 30rem; margin: 0 auto; padding: 2rem 1.25rem; color: #3b2412; line-height: 1.6;">' +
+      '<h1 style="font-size: 1.4rem; margin: 0 0 0.75rem;">' + ueberschrift + '</h1>' +
+      '<p style="margin: 0 0 1rem;">' + hinweis + '</p>' +
+      '<p style="margin: 0 0 1.5rem;">Deine Daten sind nicht verloren - sie liegen auf diesem Gerät und tauchen wieder auf, sobald die App startet.</p>' +
+      '<p style="margin: 0 0 1.5rem;"><a href="." style="display: inline-block; background: #c2410c; color: #fff; text-decoration: none; font-weight: 600; padding: 0.7rem 1.2rem; border-radius: 0.5rem;">Noch einmal versuchen</a></p>' +
+      '<p style="font-size: 0.85rem; color: #7c5c42; margin: 0;">Technische Angabe, falls du nachfragst:<br><code style="word-break: break-word;">' + String(technisch || "keine").slice(0, 300) + '</code></p>' +
+      '</div>';
+  }
+  window.addEventListener("error", function (e) {
+    var quelle = e && e.target && e.target.src;
+    if (quelle) {
+      startfehler("Ein Teil der App fehlt",
+        "Eine benötigte Datei wurde nicht geladen. Das passiert bei wackligem Netz - meist reicht ein zweiter Versuch.",
+        "Datei nicht geladen: " + quelle);
+    } else {
+      startfehler("Die App konnte nicht starten",
+        "Dein Browser kommt mit dieser Seite nicht zurecht. Am häufigsten liegt das an einer älteren Browser-Fassung - ein Update hilft meist.",
+        (e && e.message) || "unbekannt");
+    }
+  }, true);
+  window.setTimeout(function () {
+    startfehler("Das dauert länger als gewöhnlich",
+      "Die App wird beim Öffnen im Browser aufbereitet, und auf älteren Geräten kann das dauern. Lade die Seite noch einmal - beim zweiten Mal geht es meist schneller.",
+      "Zeitüberschreitung nach 20 Sekunden");
+  }, 20000);
+})();
+</script>
 <script crossorigin src="../bibliotheken/react.production.min.js"></script>
 <script crossorigin src="../bibliotheken/react-dom.production.min.js"></script>
 <script src="../bibliotheken/babel.min.js"></script>
