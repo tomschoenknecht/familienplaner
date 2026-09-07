@@ -3494,7 +3494,11 @@ function EinrichtungsDialog({ onFertig }) {
       position: "fixed", inset: 0, background: "rgba(30,15,5,0.55)", zIndex: 1000,
       display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
     }}>
-      <div style={{ background: "#fffcf8", borderRadius: 20, padding: 36, maxWidth: 460, width: "100%", boxShadow: "0 24px 64px rgba(30,15,5,0.25)" }}>
+      {/* maxHeight und overflowY wie im Modal weiter oben: Bei acht Personen wird die Karte
+          876 Pixel hoch. Ohne die beiden Angaben ragt sie oben und unten aus dem Bildschirm,
+          lässt sich nicht scrollen - und der Knopf "Los geht's" bleibt auf kleinen Handys
+          unerreichbar. */}
+      <div style={{ background: "#fffcf8", borderRadius: 20, padding: 36, maxWidth: 460, width: "100%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 64px rgba(30,15,5,0.25)" }}>
         <h2 style={{ margin: "0 0 6px", color: "#3b2412", fontSize: 24, fontWeight: 800 }}>Willkommen!</h2>
         <p style={{ margin: "0 0 28px", color: "#b08968", fontSize: 15 }}>Richte deinen Familienplaner ein. Du kannst das später jederzeit in den Einstellungen ändern.</p>
 
@@ -3707,7 +3711,11 @@ function App() {
     <div style={{ minHeight: "100vh", background: "#fdf6ee", fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
       {!familie && <EinrichtungsDialog onFertig={familieEinrichten} />}
       {/* Header */}
-      <div style={{ position: "relative", overflow: "hidden", aspectRatio: "2.4 / 1", minHeight: 320, maxHeight: 520 }}>
+      {/* width: "100%" ist Pflicht, nicht Zierde: Ohne die Angabe rechnet der Browser auf
+          schmalen Bildschirmen die Breite aus dem Seitenverhältnis zurück, sobald minHeight
+          greift - 320 mal 2.4 sind 768 Pixel. Die ganze App wurde dadurch auf dem Handy
+          768 Pixel breit, und man musste seitlich scrollen. */}
+      <div style={{ position: "relative", width: "100%", overflow: "hidden", aspectRatio: "2.4 / 1", minHeight: 320, maxHeight: 520 }}>
         <div style={{
           position: "absolute", inset: 0,
           backgroundImage: `linear-gradient(to top, #fdf6ee 0%, #fdf6eedd 30%, #2e1c0d20 100%), url('${HERO_BILD}')`,
