@@ -56,9 +56,16 @@
         "Eine benötigte Datei wurde nicht geladen. Das passiert bei wackligem Netz - meist reicht ein zweiter Versuch.",
         "Datei nicht geladen: " + quelle);
     } else {
+      // Ein SyntaxError heisst: Der Browser versteht den Code nicht, also ist er zu alt.
+      // Alles andere ist ein Fehler in der App selbst - dann waere der Rat, den Browser
+      // zu aktualisieren, schlicht falsch.
+      var meldung = (e && e.message) || "unbekannt";
+      var zuAlt = meldung.indexOf("SyntaxError") >= 0 || meldung.indexOf("Unexpected token") >= 0;
       startfehler("Die App konnte nicht starten",
-        "Dein Browser kommt mit dieser Seite nicht zurecht. Am häufigsten liegt das an einer älteren Browser-Fassung - ein Update hilft meist.",
-        (e && e.message) || "unbekannt");
+        zuAlt
+          ? "Dein Browser kommt mit dieser Seite nicht zurecht. Das liegt an einer älteren Browser-Fassung - ein Update hilft."
+          : "Hier ist ein Fehler in der App aufgetreten. Ein Neuladen hilft oft; wenn nicht, ist die Angabe unten der Schlüssel zur Ursache.",
+        meldung);
     }
   }, true);
   window.setTimeout(function () {
@@ -738,8 +745,18 @@ const DEFAULT_VORLIEBEN = {
 // ─── Storage & Sync Layer ───────────────────────────────────────────────────
 // Lokaler Speicher (immer aktiv, funktioniert auch offline)
 const load = (key, fallback) => {
-  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
-  catch { return fallback; }
+  try {
+    const v = localStorage.getItem(key);
+    if (v === null) return fallback;
+    const wert = JSON.parse(v);
+    // Steht im Speicher der Text "null", ist der wahr - die alte Fassung parste ihn
+    // und gab null zurueck, statt den Vorgabewert zu nehmen. Danach warf schon
+    // wochenplan[woche] einen TypeError und die Seite blieb weiss. Solche Nullwerte
+    // stammen aus dem alten Sync-Fehler, der fehlende Schluessel als NULL in die Cloud
+    // schrieb; der Realtime-Kanal hat sie auf alle Geraete verteilt. Ein fehlender
+    // Wert ist ab hier immer der Vorgabewert, nie null.
+    return (wert === null || wert === undefined) ? fallback : wert;
+  } catch { return fallback; }
 };
 
 // Supabase-Verbindung (modulweit, damit save() überall pushen kann)
@@ -3629,6 +3646,9 @@ function App() {
     // Eigene Echo-Updates kurz nach dem Senden ignorieren (verhindert "Zurückspringen" beim Tippen, v.a. auf Mobilgeräten)
     const seit = Date.now() - (_zuletztGesendet[key] || 0);
     if (seit < 2500) return;
+    // Nullwerte nie uebernehmen: Sie ueberschreiben gute lokale Daten mit nichts und
+    // landen als "null" im Speicher, wo sie beim naechsten Start die App anhalten.
+    if (value === null || value === undefined) return;
     const setterMap = { rezepte: setRezepte, vorlieben: setVorlieben, kalender: setKalender, wochenplan: setWochenplan, verlauf: setVerlauf, avatarFarben: setAvatarFarbenRaw, sprueche: setSpruecheRaw, rueckblicke: setRueckblickeRaw, gaeste: setGaesteRaw, familie: (v) => { FAMILIE = v; setFamilieRaw(v); } };
     const setter = setterMap[key];
     if (setter) {
