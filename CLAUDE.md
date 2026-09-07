@@ -63,6 +63,16 @@ Vor dem Push die Änderung zeigen und Freigabe abwarten.
   prueft alle elf ausgelieferten Seiten auf tote Verweise, doppelte oder zu lange Titel, fehlende
   Canonicals, Bilder ohne alt-Text und aufgebrochene Attribute. Geprueft wird der Arbeitsstand,
   nicht die veroeffentlichte Seite.
+- **Änderungen an der App immer im Handy-Format ansehen**, nicht nur am Desktop. Vorschau
+  starten, Fenster auf 375 mal 812 stellen und zwei Dinge prüfen: Ist `document.documentElement.
+  scrollWidth` gleich der Fensterbreite (sonst scrollt die Seite seitlich), und startet die App
+  auch mit vorhandenen Daten im Speicher? Beide Fehler vom 2026-09-07 - die App war 768 statt 375
+  Pixel breit, und ein "null" im Speicher hielt sie an - wären so in einer Minute aufgefallen.
+  Zwei Fallen, die dahinter stecken und wiederkommen können:
+  - `aspect-ratio` zusammen mit `min-height` und ohne `width`: Greift die Mindesthöhe, rechnet der
+    Browser die **Breite** aus dem Verhältnis zurück und bläht die ganze Seite auf.
+  - `localStorage.getItem` liefert den Text `"null"`, und der ist wahr. Ohne Prüfung wird daraus
+    beim Parsen ein `null`, das den Vorgabewert verdrängt.
 - Keine Emojis. Echte Umlaute, nie ae/oe/ue/ss.
 
 ## Strategie und Kontext

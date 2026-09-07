@@ -129,6 +129,9 @@
     .header-titel { font-size: 22px !important; }
     .header-namen { font-size: 12px !important; }
     .sync-btn { font-size: 11px !important; padding: 5px 10px !important; }
+    /* 320 Pixel sind auf einem Handy ein Drittel des Bildschirms, bevor irgendetwas
+       Nutzbares kommt. Bei 200 wirkt das Bild noch und der Wochenplan rueckt ins Bild. */
+    .header-bild { min-height: 200px !important; }
   }
 
   /* Kalender: scrollbar horizontal */
@@ -3735,7 +3738,7 @@ function App() {
           schmalen Bildschirmen die Breite aus dem Seitenverhältnis zurück, sobald minHeight
           greift - 320 mal 2.4 sind 768 Pixel. Die ganze App wurde dadurch auf dem Handy
           768 Pixel breit, und man musste seitlich scrollen. */}
-      <div style={{ position: "relative", width: "100%", overflow: "hidden", aspectRatio: "2.4 / 1", minHeight: 320, maxHeight: 520 }}>
+      <div className="header-bild" style={{ position: "relative", width: "100%", overflow: "hidden", aspectRatio: "2.4 / 1", minHeight: 320, maxHeight: 520 }}>
         <div style={{
           position: "absolute", inset: 0,
           backgroundImage: `linear-gradient(to top, #fdf6ee 0%, #fdf6eedd 30%, #2e1c0d20 100%), url('${HERO_BILD}')`,
